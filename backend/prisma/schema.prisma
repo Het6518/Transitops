@@ -83,6 +83,10 @@ model User {
   phone     String?
   timezone  String     @default("UTC")
 
+  // Dynamic Role association
+  roleId    String?    @map("role_id")
+  roleRelation Role?   @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
   // Metadata
   lastLoginAt DateTime? @map("last_login_at")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -99,6 +103,19 @@ model User {
   @@map("users")
 }
 
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "FLEET_MANAGER", "DRIVER", "SAFETY_OFFICER", "FINANCIAL_ANALYST"
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users            User[]
+  rolePermissions  RolePermission[]
+
+  @@map("roles")
+}
+
 model Permission {
   id          String           @id @default(cuid())
   name        String           @unique  // e.g. "fleet:create"
@@ -110,10 +127,26 @@ model Permission {
   createdAt DateTime @default(now()) @map("created_at")
 
   userPermissions UserPermission[]
+  rolePermissions RolePermission[]
 
   @@index([module])
   @@index([name])
   @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String   @map("role_id")
+  permissionId String   @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
 }
 
 model UserPermission {

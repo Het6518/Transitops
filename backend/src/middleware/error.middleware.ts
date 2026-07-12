@@ -78,8 +78,8 @@ export const errorHandler = (
     stack: error.stack,
     path: req.path,
     method: req.method,
-    requestId: req.requestId,
-    userId: req.user?.id,
+    requestId: (req as any).requestId,
+    userId: (req as any).user?.id,
   });
 
   // Zod validation

@@ -69,7 +69,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response): Promise
  *       - bearerAuth: []
  */
 export const logout = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  await authService.logout(req.user!.sessionId, req.user!.id);
+  await authService.logout((req as any).user!.sessionId, (req as any).user!.id);
   sendSuccess(res, null, 'Logged out successfully');
 });
 
@@ -83,6 +83,6 @@ export const logout = asyncHandler(async (req: Request, res: Response): Promise<
  *       - bearerAuth: []
  */
 export const getProfile = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const profile = await authService.getProfile(req.user!.id);
+  const profile = await authService.getProfile((req as any).user!.id);
   sendSuccess(res, profile, 'Profile retrieved');
 });

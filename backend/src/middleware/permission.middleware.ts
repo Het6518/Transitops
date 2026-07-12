@@ -1,9 +1,11 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { UserRole } from '@prisma/client';
+import { prisma } from '../config/database';
 import { ForbiddenError, UnauthorizedError } from './error.middleware';
 
 /** Numeric priority for each role (higher = more privileged) */
-const ROLE_HIERARCHY: Record<UserRole, number> = {
+export const ROLE_HIERARCHY: Record<UserRole, number> = {
   SUPER_ADMIN: 100,
   ADMIN: 80,
   MANAGER: 60,
@@ -12,6 +14,76 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   DRIVER: 20,
   VIEWER: 10,
 };
+
+// ============================================================
+// Permission Cache System
+// ============================================================
+
+// Memory cache structure: roleId -> Set of permission names
+let rolePermissionsCache: Map<string, Set<string>> = new Map();
+let cacheLoadedAt: Date | null = null;
+
+/** Populate or refresh the role permission memory cache */
+export async function refreshPermissionCache(): Promise<void> {
+  const roles = await prisma.role.findMany({
+    include: {
+      rolePermissions: {
+        include: {
+          permission: true,
+        },
+      },
+    },
+  });
+
+  const newCache = new Map<string, Set<string>>();
+  for (const role of roles) {
+    const permSet = new Set<string>();
+    for (const rp of role.rolePermissions) {
+      permSet.add(rp.permission.name);
+    }
+    newCache.set(role.id, permSet);
+  }
+
+  rolePermissionsCache = newCache;
+  cacheLoadedAt = new Date();
+}
+
+/** Get permissions for a user, combining explicit user overrides and their dynamic role permissions */
+export async function getUserPermissions(userId: string, roleId: string | null): Promise<string[]> {
+  // If cache is not loaded, load it now
+  if (rolePermissionsCache.size === 0 || !cacheLoadedAt) {
+    await refreshPermissionCache();
+  }
+
+  const permissions = new Set<string>();
+
+  // 1. Add role-based permissions from memory cache
+  if (roleId) {
+    const rolePerms = rolePermissionsCache.get(roleId);
+    if (rolePerms) {
+      rolePerms.forEach((p) => permissions.add(p));
+    }
+  }
+
+  // 2. Query and merge user-specific explicit overrides (granted/revoked) from DB
+  const explicitOverrides = await prisma.userPermission.findMany({
+    where: {
+      userId,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    include: { permission: true },
+  });
+
+  for (const override of explicitOverrides) {
+    if (override.granted) {
+      permissions.add(override.permission.name);
+    } else {
+      permissions.delete(override.permission.name); // explicit revoke
+    }
+  }
+
+  return Array.from(permissions);
+}
 
 // ============================================================
 // Role-Based Access Control
@@ -96,8 +168,8 @@ export const requireAnyPermission =
   };
 
 /**
- * Shorthand for module:action permission.
- * Usage: can('fleet', 'create')
+ * Require permission for a specific module and action.
+ * e.g. can('fleet', 'create') translates to checking 'fleet:create'
  */
 export const can = (module: string, action: string) =>
   requirePermission(`${module}:${action}`);

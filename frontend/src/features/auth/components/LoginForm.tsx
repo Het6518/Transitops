@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -99,25 +100,33 @@ export function LoginForm() {
           )}
         />
 
-        {/* Remember me */}
-        <FormField
-          control={form.control}
-          name="rememberMe"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox
-                  id="rememberMe"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <FormLabel htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer">
-                Remember me for 30 days
-              </FormLabel>
-            </FormItem>
-          )}
-        />
+        {/* Remember me & Forgot Password link */}
+        <div className="flex items-center justify-between">
+          <FormField
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    id="rememberMe"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer">
+                  Remember me
+                </FormLabel>
+              </FormItem>
+            )}
+          />
+          <Link
+            to="/forgot-password"
+            className="text-sm text-primary hover:underline font-medium"
+          >
+            Forgot password?
+          </Link>
+        </div>
 
         {/* Submit */}
         <Button

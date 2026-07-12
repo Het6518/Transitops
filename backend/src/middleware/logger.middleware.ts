@@ -13,7 +13,7 @@ export const requestId = (
   next: NextFunction,
 ): void => {
   const id = (req.headers['x-request-id'] as string) ?? uuidv4();
-  req.requestId = id;
+  (req as any).requestId = id;
   res.setHeader('X-Request-ID', id);
   next();
 };

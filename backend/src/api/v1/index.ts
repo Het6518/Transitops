@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import healthRouter from './health/health.routes';
 import authRouter from './auth/auth.routes';
+import permissionsRouter from './permissions/permissions.routes';
 
 const router = Router();
 
 // Mount feature routers
 router.use('/health', healthRouter);
 router.use('/auth', authRouter);
+router.use('/', permissionsRouter);
 
 // Future modules will be mounted here:
 // router.use('/fleet', fleetRouter);

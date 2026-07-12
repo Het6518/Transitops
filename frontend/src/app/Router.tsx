@@ -7,7 +7,9 @@ import { ROUTES } from '@/lib/constants';
 
 // ── Lazy-loaded pages ─────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
+const UnauthorizedPage = lazy(() => import('@/components/common/UnauthorizedPage'));
 
 // Placeholder pages for modules not yet built
 function ComingSoon({ module }: { module: string }) {
@@ -37,6 +39,22 @@ const router = createBrowserRouter([
           <LoginPage />
         </Suspense>
       </PublicRoute>
+    ),
+  },
+  {
+    path: '/forgot-password',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <ForgotPasswordPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/unauthorized',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <UnauthorizedPage />
+      </Suspense>
     ),
   },
 

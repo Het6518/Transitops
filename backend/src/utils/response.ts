@@ -32,7 +32,7 @@ export function sendSuccess<T>(
     data,
     meta,
     timestamp: new Date().toISOString(),
-    requestId: res.req?.requestId,
+    requestId: (res.req as any)?.requestId,
   };
   return res.status(statusCode).json(payload);
 }
@@ -60,7 +60,7 @@ export function sendError(
     message,
     errors,
     timestamp: new Date().toISOString(),
-    requestId: res.req?.requestId,
+    requestId: (res.req as any)?.requestId,
   };
   return res.status(statusCode).json(payload);
 }

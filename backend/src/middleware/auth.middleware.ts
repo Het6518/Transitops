@@ -1,8 +1,10 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { verifyAccessToken } from '../utils/jwt';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError } from './error.middleware';
+import { getUserPermissions } from './permission.middleware';
 
 /**
  * Authenticate — verifies JWT and attaches `req.user`.
@@ -32,18 +34,9 @@ export const authenticate = asyncHandler(
       throw new UnauthorizedError('Session expired or revoked. Please login again.');
     }
 
-    // Load user with their permissions
+    // Load user
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      include: {
-        userPermissions: {
-          where: {
-            granted: true,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          },
-          include: { permission: true },
-        },
-      },
     });
 
     if (!user) {
@@ -56,6 +49,9 @@ export const authenticate = asyncHandler(
       );
     }
 
+    // Load all combined permissions dynamically (roleRelation + explicit userPermissions overrides)
+    const permissions = await getUserPermissions(user.id, user.roleId);
+
     // Attach user to request
     req.user = {
       id: user.id,
@@ -63,7 +59,7 @@ export const authenticate = asyncHandler(
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
-      permissions: user.userPermissions.map((up) => up.permission.name),
+      permissions,
       sessionId: session.id,
     };
 
@@ -91,23 +87,19 @@ export const optionalAuthenticate = asyncHandler(
         prisma.session.findUnique({ where: { id: payload.sessionId } }),
         prisma.user.findUnique({
           where: { id: payload.sub },
-          include: {
-            userPermissions: {
-              where: { granted: true },
-              include: { permission: true },
-            },
-          },
         }),
       ]);
 
       if (session && !session.isRevoked && user && user.status === 'ACTIVE') {
+        const permissions = await getUserPermissions(user.id, user.roleId);
+        
         req.user = {
           id: user.id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          permissions: user.userPermissions.map((up) => up.permission.name),
+          permissions,
           sessionId: session.id,
         };
       }

@@ -10,6 +10,7 @@ import {
 } from '../../../utils/jwt';
 import { AppError, UnauthorizedError } from '../../../middleware/error.middleware';
 import { env } from '../../../config/env';
+import { getUserPermissions } from '../../../middleware/permission.middleware';
 
 // ============================================================
 // DTOs
@@ -105,9 +106,8 @@ export class AuthService {
     // 7. Update last login
     await authRepository.updateLastLogin(user.id);
 
-    // 8. Fetch permissions
-    const userWithPerms = await authRepository.findUserWithPermissions(user.id);
-    const permissions = userWithPerms?.userPermissions.map((up) => up.permission.name) ?? [];
+    // 8. Fetch permissions dynamically (roleRelation + overrides)
+    const permissions = await getUserPermissions(user.id, user.roleId);
 
     // 9. Audit log
     await authRepository.createAuditLog({
@@ -185,8 +185,10 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<AuthUser & { lastLoginAt: Date | null }> {
-    const user = await authRepository.findUserWithPermissions(userId);
+    const user = await authRepository.findUserById(userId);
     if (!user) throw new AppError('User not found', 404);
+
+    const permissions = await getUserPermissions(user.id, user.roleId);
 
     return {
       id: user.id,
@@ -195,7 +197,7 @@ export class AuthService {
       lastName: user.lastName,
       role: user.role,
       avatar: user.avatar,
-      permissions: user.userPermissions.map((up) => up.permission.name),
+      permissions,
       lastLoginAt: user.lastLoginAt,
     };
   }
