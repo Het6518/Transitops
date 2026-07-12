@@ -1,14 +1,8 @@
-const bcrypt = require('bcrypt');
-const jwt    = require('jsonwebtoken');
-const { z }  = require('zod');
-const prisma  = require('../prisma/client');
-
-/** Extract the first human-readable message from a Zod v4 safeParse result */
-function zodMessage(error) {
-  // Zod v4: error.issues[]. Zod v3: error.errors[].
-  const issues = error?.issues ?? error?.errors ?? [];
-  return issues[0]?.message ?? 'Validation error';
-}
+const bcrypt     = require('bcrypt');
+const jwt        = require('jsonwebtoken');
+const { z }      = require('zod');
+const prisma     = require('../prisma/client');
+const { zodMessage } = require('../utils/zodMessage');
 
 const BCRYPT_ROUNDS = 10;
 
