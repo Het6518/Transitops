@@ -163,3 +163,33 @@
   opacity: 0;
 }
 
+/* ── Google Translate — hide default toolbar & banner ───────────────────── */
+/* The widget injects an iframe banner at the very top; we suppress it and  */
+/* use our own custom language buttons instead.                              */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+#goog-gt-tt,
+.goog-te-balloon-frame,
+.goog-tooltip,
+.goog-tooltip-content,
+.goog-te-gadget-simple,
+.VIpgJd-ZVi9od-ORHb,
+.VIpgJd-ZVi9od-ORHb-OEVmcd {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Prevent GT from pushing body down by setting a top offset */
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+/* Remove the dashed underline GT adds to translated text */
+.goog-te-combo,
+font[face] {
+  border: none !important;
+  background: transparent !important;
+}
+
+
