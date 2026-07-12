@@ -44,6 +44,7 @@ export default function TripsPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving]       = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedTripDetails, setSelectedTripDetails] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true); setError('');
@@ -174,7 +175,11 @@ export default function TripsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {trips.map((t) => (
-                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                    <tr 
+                      key={t.id} 
+                      onClick={() => setSelectedTripDetails(t)}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-ink-onLight">{t.source} → {t.destination}</p>
                         <p className="text-xs text-ink-muted">{tripSubtext(t)}</p>
@@ -202,13 +207,28 @@ export default function TripsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {canDispatch && t.status === 'DRAFT' && (
-                            <button onClick={() => handleDispatch(t)} className="text-xs text-accent hover:underline">Dispatch</button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDispatch(t); }} 
+                              className="text-xs text-accent hover:underline"
+                            >
+                              Dispatch
+                            </button>
                           )}
                           {canComplete && t.status === 'DISPATCHED' && (
-                            <button onClick={() => openComplete(t)} className="text-xs text-status-available hover:underline">Complete</button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); openComplete(t); }} 
+                              className="text-xs text-status-available hover:underline"
+                            >
+                              Complete
+                            </button>
                           )}
                           {canCancel && (t.status === 'DRAFT' || t.status === 'DISPATCHED') && (
-                            <button onClick={() => handleCancel(t)} className="text-xs text-status-retired hover:underline">Cancel</button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleCancel(t); }} 
+                              className="text-xs text-status-retired hover:underline"
+                            >
+                              Cancel
+                            </button>
                           )}
                         </div>
                       </td>
@@ -302,6 +322,213 @@ export default function TripsPage() {
           </form>
         </Modal>
       )}
+
+      {/* Trip Details Side Drawer */}
+      {selectedTripDetails && (() => {
+        const activeTrip = trips.find(t => t.id === selectedTripDetails.id) || selectedTripDetails;
+        const estCost = (activeTrip.plannedDistance * 1.85).toFixed(2);
+        const estFuel = (activeTrip.plannedDistance * 0.18).toFixed(1);
+        
+        return (
+          <>
+            {/* Backdrop overlay */}
+            <div 
+              className="fixed inset-0 bg-black/45 backdrop-blur-xs z-45 transition-opacity duration-300"
+              onClick={() => setSelectedTripDetails(null)}
+            />
+
+            {/* Side Panel */}
+            <div className="fixed top-0 right-0 h-full w-[460px] max-w-full bg-white dark:bg-brand-dark-raised shadow-2xl z-50 border-l border-gray-100 dark:border-brand-dark flex flex-col transition-all duration-300 transform translate-x-0">
+              
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-gray-100 dark:border-brand-dark flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center">
+                    <svg className="w-5 h-5 transform rotate-45 -translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-base text-ink-onLight">Trip Details</h2>
+                    <p className="text-xs text-ink-muted">ID: {activeTrip.id.substring(0, 15)}...</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedTripDetails(null)}
+                  className="p-1.5 rounded-lg text-ink-muted hover:bg-brand-light transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                
+                {/* Workflow State Block */}
+                <div className="flex items-center justify-between py-2.5 px-4 bg-brand-light dark:bg-brand-dark rounded-xl">
+                  <span className="text-xs font-semibold text-ink-muted">Workflow State</span>
+                  <StatusBadge status={activeTrip.status} />
+                </div>
+
+                {/* Quick actions if status allows */}
+                {(activeTrip.status === 'DRAFT' || activeTrip.status === 'DISPATCHED') && (
+                  <div className="flex gap-3">
+                    {canDispatch && activeTrip.status === 'DRAFT' && (
+                      <button 
+                        onClick={() => handleDispatch(activeTrip)}
+                        className="flex-1 btn-primary flex items-center justify-center gap-2 py-2 text-sm"
+                      >
+                        <svg className="w-4 h-4 transform rotate-45 -translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Dispatch Trip
+                      </button>
+                    )}
+                    {canComplete && activeTrip.status === 'DISPATCHED' && (
+                      <button 
+                        onClick={() => openComplete(activeTrip)}
+                        className="flex-1 btn-primary flex items-center justify-center gap-2 py-2 text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Complete Trip
+                      </button>
+                    )}
+                    {canCancel && (activeTrip.status === 'DRAFT' || activeTrip.status === 'DISPATCHED') && (
+                      <button 
+                        onClick={() => {
+                          handleCancel(activeTrip);
+                          setSelectedTripDetails(null);
+                        }}
+                        className="flex-1 border border-status-retired text-status-retired hover:bg-status-retired/10 transition rounded-xl flex items-center justify-center gap-2 py-2 text-sm font-semibold"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Cancel Trip
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* TRIP SPECIFICATIONS */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Trip Specifications</h3>
+                  <div className="bg-brand-light dark:bg-brand-dark p-4 rounded-xl space-y-4">
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Route</p>
+                      <p className="text-sm font-semibold text-ink-onLight">{activeTrip.source} → {activeTrip.destination}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100 dark:border-brand-dark-raised/50">
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-ink-muted mb-0.5">Cargo Description</p>
+                        <p className="text-xs text-ink-onLight font-medium">General Freight / Dry Goods</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-ink-muted mb-0.5">Cargo Weight</p>
+                        <p className="text-xs text-ink-onLight font-medium">{activeTrip.cargoWeightKg.toLocaleString()} kg</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ASSIGNED PERSONNEL & ASSET */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Assigned Personnel & Asset</h3>
+                  <div className="grid grid-cols-2 gap-4 bg-brand-light dark:bg-brand-dark p-4 rounded-xl">
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Driver</p>
+                      <p className="text-sm font-semibold text-ink-onLight leading-tight">{activeTrip.driver?.name ?? '—'}</p>
+                      <p className="text-[10px] font-mono text-ink-muted mt-0.5">{activeTrip.driver?.licenseNo ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Vehicle</p>
+                      <p className="text-sm font-semibold text-ink-onLight leading-tight">{activeTrip.vehicle?.name ?? '—'}</p>
+                      <p className="text-[10px] font-mono text-ink-muted mt-0.5">{activeTrip.vehicle?.regNo ?? '—'} ({activeTrip.vehicle?.type ?? '—'})</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COST & FUEL ESTIMATORS */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Cost & Fuel Estimators</h3>
+                  <div className="grid grid-cols-3 gap-3 bg-brand-light dark:bg-brand-dark p-4 rounded-xl text-center">
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Estimated Cost</p>
+                      <p className="text-sm font-bold text-accent">${estCost}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Estimated Fuel</p>
+                      <p className="text-sm font-bold text-accent">{estFuel} L</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-semibold text-ink-muted mb-1">Route Distance</p>
+                      <p className="text-sm font-bold text-accent">{activeTrip.plannedDistance} km</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LIFECYCLE TIMELINE */}
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Lifecycle Timeline</h3>
+                  <div className="relative border-l-2 border-gray-100 dark:border-brand-dark ml-3 pl-6 space-y-6 text-xs">
+                    {/* Draft */}
+                    <div className="relative">
+                      <span className="absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full bg-status-available text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+                      <div>
+                        <p className="font-semibold text-ink-onLight">Trip request logged (DRAFT)</p>
+                        <p className="text-[10px] text-ink-muted">{new Date(activeTrip.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Dispatched */}
+                    <div className="relative">
+                      <span className={`absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        activeTrip.dispatchedAt ? 'bg-status-available text-white' : 'bg-gray-200 text-gray-400 dark:bg-brand-dark'
+                      }`}>
+                        {activeTrip.dispatchedAt ? '✓' : '2'}
+                      </span>
+                      <div>
+                        <p className={`font-semibold ${activeTrip.dispatchedAt ? 'text-ink-onLight' : 'text-ink-muted'}`}>Dispatched</p>
+                        {activeTrip.dispatchedAt && (
+                          <p className="text-[10px] text-ink-muted">{new Date(activeTrip.dispatchedAt).toLocaleString()}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Completed / Cancelled */}
+                    <div className="relative">
+                      <span className={`absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        activeTrip.status === 'COMPLETED' ? 'bg-status-available text-white' :
+                        activeTrip.status === 'CANCELLED' ? 'bg-status-retired text-white' :
+                        'bg-gray-200 text-gray-400 dark:bg-brand-dark'
+                      }`}>
+                        {activeTrip.status === 'COMPLETED' ? '✓' : activeTrip.status === 'CANCELLED' ? '✗' : '3'}
+                      </span>
+                      <div>
+                        <p className={`font-semibold ${
+                          activeTrip.status === 'COMPLETED' ? 'text-status-available' :
+                          activeTrip.status === 'CANCELLED' ? 'text-status-retired font-semibold' :
+                          'text-ink-muted'
+                        }`}>
+                          {activeTrip.status === 'CANCELLED' ? 'Cancelled' : 'Completed'}
+                        </p>
+                        {activeTrip.completedAt && (
+                          <p className="text-[10px] text-ink-muted">{new Date(activeTrip.completedAt).toLocaleString()}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </PageLayout>
   );
 }
