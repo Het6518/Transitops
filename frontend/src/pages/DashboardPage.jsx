@@ -53,12 +53,12 @@ export default function DashboardPage() {
   return (
     <PageLayout title="Dashboard">
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select
           id="dashboard-filter-type"
           value={filters.vehicleType}
           onChange={(e) => setFilters((f) => ({ ...f, vehicleType: e.target.value }))}
-          className="select text-sm"
+          className="select w-full sm:w-48 text-sm"
         >
           <option value="">All Types</option>
           <option value="truck">Truck</option>
@@ -69,7 +69,7 @@ export default function DashboardPage() {
           id="dashboard-filter-status"
           value={filters.status}
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="select text-sm"
+          className="select w-full sm:w-48 text-sm"
         >
           <option value="">All Statuses</option>
           <option value="AVAILABLE">Available</option>
@@ -84,7 +84,7 @@ export default function DashboardPage() {
       {!loading && !error && data && (
         <>
           {/* KPI Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {kpis.map((k) => (
               <KpiCard key={k.label} label={k.label} value={k.value} accent={k.accent} />
             ))}
@@ -93,28 +93,32 @@ export default function DashboardPage() {
           {/* Vehicle Status breakdown */}
           <div className="bg-white rounded-xl shadow-sm p-5 mb-8">
             <h2 className="text-sm font-semibold text-ink-onLight mb-4">Vehicle Status Breakdown</h2>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Object.entries(vehicleStatusBars).map(([status, count]) => (
-                <div key={status} className="flex items-center gap-3">
-                  <span className="text-xs text-ink-muted w-24 shrink-0">{status.replace('_', ' ')}</span>
+                <div key={status} className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                  <div className="flex justify-between md:contents">
+                    <span className="text-xs text-ink-muted w-24 shrink-0 uppercase tracking-wider">{status.replace('_', ' ')}</span>
+                    <span className="text-xs font-semibold text-ink-onLight w-6 text-right md:order-last">{count}</span>
+                  </div>
                   <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[status] ?? 'bg-brand-dark'}`}
                       style={{ width: `${(count / totalVehicles) * 100}%` }}
                     />
                   </div>
-                  <span className="text-xs font-semibold text-ink-onLight w-6 text-right">{count}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Recent Trips */}
+          {/* Recent Trips Container */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-ink-onLight">Recent Trips</h2>
             </div>
-            <div className="overflow-x-auto">
+            
+            {/* Desktop & Tablet Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-brand-light">
                   <tr>
@@ -140,6 +144,45 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards List */}
+            <div className="block md:hidden p-4 space-y-4">
+              {data.recentTrips?.length > 0 ? (
+                data.recentTrips.map((t) => (
+                  <div key={t.id} className="p-4 space-y-3 bg-brand-light rounded-xl border border-brand-dark-raised/20 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Source</span>
+                        <span className="text-sm font-semibold text-ink-onLight">{t.source}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Destination</span>
+                        <span className="text-sm font-semibold text-ink-onLight">{t.destination}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-brand-dark-raised/15">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Vehicle</span>
+                        <span className="text-xs font-mono text-ink-muted truncate block max-w-full">{t.vehicle?.regNo ?? '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Driver</span>
+                        <span className="text-xs text-ink-muted truncate block max-w-full">{t.driver?.name ?? '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-brand-dark-raised/15 flex justify-between items-center">
+                      <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider">Status</span>
+                      <StatusBadge status={t.status} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-sm text-ink-muted py-10">No recent trips</div>
+              )}
+            </div>
+
           </div>
         </>
       )}
