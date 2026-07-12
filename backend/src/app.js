@@ -34,7 +34,7 @@ app.post('/admin/refresh-permissions', async (req, res, next) => {
 app.use('/vehicles',    require('./routes/vehicle.routes'));
 app.use('/drivers',     require('./routes/driver.routes'));
 app.use('/trips',       require('./routes/trip.routes'));
-// app.use('/maintenance', require('./routes/maintenance.routes')); // Phase 6
+app.use('/maintenance', require('./routes/maintenance.routes'));
 // app.use('/dashboard',   require('./routes/dashboard.routes'));  // Phase 8
 // app.use('/reports',     require('./routes/report.routes'));     // Phase 8
 
