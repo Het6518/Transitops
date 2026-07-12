@@ -10,6 +10,7 @@ const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
 const FleetPage = lazy(() => import('@/features/fleet/pages/FleetPage'));
+const DriversPage = lazy(() => import('@/features/drivers/pages/DriversPage'));
 const UnauthorizedPage = lazy(() => import('@/components/common/UnauthorizedPage'));
 
 // Placeholder pages for modules not yet built
@@ -85,7 +86,14 @@ const router = createBrowserRouter([
         ),
       },
       { path: ROUTES.ROUTES_PAGE, element: <ComingSoon module="Route Management" /> },
-      { path: ROUTES.DRIVERS, element: <ComingSoon module="Driver Management" /> },
+      {
+        path: ROUTES.DRIVERS,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <DriversPage />
+          </Suspense>
+        ),
+      },
       { path: ROUTES.TRIPS, element: <ComingSoon module="Trip Management" /> },
       { path: ROUTES.MAINTENANCE, element: <ComingSoon module="Maintenance" /> },
       { path: ROUTES.FUEL, element: <ComingSoon module="Fuel Management" /> },
