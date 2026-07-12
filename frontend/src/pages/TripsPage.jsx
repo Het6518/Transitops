@@ -343,14 +343,14 @@ export default function TripsPage() {
               {/* Header */}
               <div className="px-6 py-5 border-b border-gray-100 dark:border-brand-dark flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center">
-                    <svg className="w-5 h-5 transform rotate-45 -translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                     </svg>
                   </div>
                   <div>
                     <h2 className="font-semibold text-base text-ink-onLight">Trip Details</h2>
-                    <p className="text-xs text-ink-muted">ID: {activeTrip.id.substring(0, 15)}...</p>
+                    <p className="text-xs text-ink-muted font-mono">{activeTrip.id.substring(0, 18)}...</p>
                   </div>
                 </div>
                 <button 
@@ -475,21 +475,31 @@ export default function TripsPage() {
                 <div className="space-y-4 pt-2">
                   <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Lifecycle Timeline</h3>
                   <div className="relative border-l-2 border-gray-100 dark:border-brand-dark ml-3 pl-6 space-y-6 text-xs">
-                    {/* Draft */}
+                    {/* Draft — always done */}
                     <div className="relative">
-                      <span className="absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full bg-status-available text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+                      <span className="absolute -left-[31px] top-0.5 w-5 h-5 rounded-full bg-status-available text-white flex items-center justify-center">
+                        <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="2,6 5,9 10,3" />
+                        </svg>
+                      </span>
                       <div>
                         <p className="font-semibold text-ink-onLight">Trip request logged (DRAFT)</p>
                         <p className="text-[10px] text-ink-muted">{new Date(activeTrip.createdAt).toLocaleString()}</p>
                       </div>
                     </div>
-                    
+
                     {/* Dispatched */}
                     <div className="relative">
-                      <span className={`absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                        activeTrip.dispatchedAt ? 'bg-status-available text-white' : 'bg-gray-200 text-gray-400 dark:bg-brand-dark'
+                      <span className={`absolute -left-[31px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center ${
+                        activeTrip.dispatchedAt ? 'bg-status-available text-white' : 'bg-gray-200 dark:bg-brand-dark'
                       }`}>
-                        {activeTrip.dispatchedAt ? '✓' : '2'}
+                        {activeTrip.dispatchedAt ? (
+                          <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="2,6 5,9 10,3" />
+                          </svg>
+                        ) : (
+                          <span className="text-[10px] font-bold text-gray-400">2</span>
+                        )}
                       </span>
                       <div>
                         <p className={`font-semibold ${activeTrip.dispatchedAt ? 'text-ink-onLight' : 'text-ink-muted'}`}>Dispatched</p>
@@ -501,17 +511,28 @@ export default function TripsPage() {
 
                     {/* Completed / Cancelled */}
                     <div className="relative">
-                      <span className={`absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      <span className={`absolute -left-[31px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center ${
                         activeTrip.status === 'COMPLETED' ? 'bg-status-available text-white' :
                         activeTrip.status === 'CANCELLED' ? 'bg-status-retired text-white' :
-                        'bg-gray-200 text-gray-400 dark:bg-brand-dark'
+                        'bg-gray-200 dark:bg-brand-dark'
                       }`}>
-                        {activeTrip.status === 'COMPLETED' ? '✓' : activeTrip.status === 'CANCELLED' ? '✗' : '3'}
+                        {activeTrip.status === 'COMPLETED' ? (
+                          <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="2,6 5,9 10,3" />
+                          </svg>
+                        ) : activeTrip.status === 'CANCELLED' ? (
+                          <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="3" y1="3" x2="9" y2="9" />
+                            <line x1="9" y1="3" x2="3" y2="9" />
+                          </svg>
+                        ) : (
+                          <span className="text-[10px] font-bold text-gray-400">3</span>
+                        )}
                       </span>
                       <div>
                         <p className={`font-semibold ${
                           activeTrip.status === 'COMPLETED' ? 'text-status-available' :
-                          activeTrip.status === 'CANCELLED' ? 'text-status-retired font-semibold' :
+                          activeTrip.status === 'CANCELLED' ? 'text-status-retired' :
                           'text-ink-muted'
                         }`}>
                           {activeTrip.status === 'CANCELLED' ? 'Cancelled' : 'Completed'}

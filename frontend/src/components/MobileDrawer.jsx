@@ -50,7 +50,10 @@ export default function MobileDrawer({ isOpen, onClose }) {
       {/* Drawer content */}
       <div className="relative w-72 max-w-sm bg-white dark:bg-brand-dark flex flex-col h-full shadow-2xl z-10">
         <div className="px-6 py-5 border-b border-brand-dark-raised flex items-center justify-between">
-          <span className="text-ink-onLight dark:text-ink-onDark font-bold text-lg">TransitOps</span>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="TransitOps Logo" className="w-8 h-8 rounded-lg object-contain" />
+            <span className="text-ink-onLight dark:text-ink-onDark font-bold text-lg">TransitOps</span>
+          </div>
           <button 
             onClick={onClose}
             className="text-ink-muted dark:text-ink-onDarkMuted hover:text-ink-onLight dark:hover:text-ink-onDark focus:outline-none p-1 rounded hover:bg-brand-dark-raised"

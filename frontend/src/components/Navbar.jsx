@@ -69,12 +69,8 @@ export default function Navbar() {
             </svg>
           </button>
 
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="TransitOps Logo" className="w-9 h-9 rounded-lg object-contain" />
             <span className="text-ink-onDark font-bold text-lg tracking-tight">TransitOps</span>
           </Link>
         </div>
