@@ -111,6 +111,7 @@ export default function FleetPage() {
           placeholder="Search reg no…"
           value={filters.search}
           onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
           className="input-light w-48 text-sm"
         />
         <select id="fleet-filter-type" value={filters.type} onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))} className="input-light w-36 text-sm">

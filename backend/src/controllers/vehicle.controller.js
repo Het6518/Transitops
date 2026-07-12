@@ -28,6 +28,7 @@ const updateSchema = z.object({
 const listQuerySchema = z.object({
   status: VEHICLE_STATUS.optional(),
   type:   z.string().optional(),
+  search: z.string().optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

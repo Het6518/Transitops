@@ -34,9 +34,9 @@ async function createVehicle(data) {
 
 /**
  * List vehicles with optional query filters.
- * @param {{ status?: string, type?: string }} filters
+ * @param {{ status?: string, type?: string, search?: string }} filters
  */
-async function listVehicles({ status, type } = {}) {
+async function listVehicles({ status, type, search } = {}) {
   const where = {};
 
   if (status) {
@@ -45,6 +45,12 @@ async function listVehicles({ status, type } = {}) {
   if (type) {
     // Case-insensitive partial match — lets "truck" match "Heavy Truck"
     where.type = { contains: type, mode: 'insensitive' };
+  }
+  if (search) {
+    where.OR = [
+      { regNo: { contains: search, mode: 'insensitive' } },
+      { name:  { contains: search, mode: 'insensitive' } },
+    ];
   }
 
   return prisma.vehicle.findMany({

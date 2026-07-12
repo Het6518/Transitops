@@ -319,8 +319,10 @@ async function main() {
 
   // ─── 8. Seed Maintenance Logs ───────────────────────────────────────────────
   console.log('🔧 Seeding Maintenance...');
-  const maintenanceCount = await prisma.maintenanceLog.count();
-  if (maintenanceCount === 0) {
+  const activeLog = await prisma.maintenanceLog.findFirst({
+    where: { vehicleId: vehicleMap['MH12AB1004'], isActive: true }
+  });
+  if (!activeLog) {
     await prisma.maintenanceLog.create({
       data: {
         vehicleId: vehicleMap['MH12AB1004'],
