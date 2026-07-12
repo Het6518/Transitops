@@ -1,0 +1,14 @@
+node_modules/
+.env
+dist/
+
+# Prisma
+prisma/migrations/
+
+# Docker volumes (local)
+postgres_data/
+pgadmin_data/
+
+# Logs
+*.log
+npm-debug.log*
