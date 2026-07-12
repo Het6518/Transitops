@@ -9,6 +9,7 @@ import tripsRouter from './trips/trips.routes';
 import maintenanceRouter from './maintenance/maintenance.routes';
 import fuelRouter from './fuel/fuel.routes';
 import expensesRouter from './expenses/expenses.routes';
+import reportsRouter from './reports/reports.routes';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use('/trips', tripsRouter);
 router.use('/maintenance', maintenanceRouter);
 router.use('/fuel', fuelRouter);
 router.use('/expenses', expensesRouter);
+router.use('/reports', reportsRouter);
 router.use('/', permissionsRouter);
 
 // Future modules will be mounted here:
