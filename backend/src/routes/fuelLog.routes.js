@@ -16,4 +16,10 @@ router.post('/', requirePermission('fuelLog', 'create'), ctrl.createFuelLog);
 // GET    /fuel-logs → List fuel logs (FLEET_MANAGER, DRIVER, FINANCIAL_ANALYST)
 router.get('/', requirePermission('fuelLog', 'read'), ctrl.listFuelLogs);
 
+// PATCH  /fuel-logs/:id → Update fuel log (FLEET_MANAGER, DRIVER)
+router.patch('/:id', requirePermission('fuelLog', 'update'), ctrl.updateFuelLog);
+
+// DELETE /fuel-logs/:id → Delete fuel log (FLEET_MANAGER, DRIVER)
+router.delete('/:id', requirePermission('fuelLog', 'delete'), ctrl.deleteFuelLog);
+
 module.exports = router;

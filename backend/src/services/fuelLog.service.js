@@ -30,4 +30,27 @@ async function listFuelLogs({ vehicleId } = {}) {
   });
 }
 
-module.exports = { createFuelLog, listFuelLogs };
+async function updateFuelLog(id, data) {
+  const log = await prisma.fuelLog.findUnique({ where: { id } });
+  if (!log) throw new NotFoundError(`Fuel log '${id}' not found`);
+
+  if (data.vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: data.vehicleId } });
+    if (!vehicle) throw new NotFoundError(`Vehicle '${data.vehicleId}' not found`);
+  }
+
+  return prisma.fuelLog.update({
+    where: { id },
+    data,
+    include: { vehicle: true },
+  });
+}
+
+async function deleteFuelLog(id) {
+  const log = await prisma.fuelLog.findUnique({ where: { id } });
+  if (!log) throw new NotFoundError(`Fuel log '${id}' not found`);
+
+  return prisma.fuelLog.delete({ where: { id } });
+}
+
+module.exports = { createFuelLog, listFuelLogs, updateFuelLog, deleteFuelLog };

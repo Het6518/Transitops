@@ -15,6 +15,13 @@ const listQuerySchema = z.object({
   vehicleId: z.string().uuid('vehicleId must be a valid UUID').optional(),
 });
 
+const updateSchema = z.object({
+  vehicleId: z.string().uuid('vehicleId must be a valid UUID').optional(),
+  type:      z.string().min(1).optional(),
+  amount:    z.number().positive('amount must be > 0').optional(),
+  date:      z.coerce.date().optional(),
+}).strict();
+
 // ─── Async Wrapper ────────────────────────────────────────────────────────────
 
 const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -41,4 +48,20 @@ const listExpenses = asyncHandler(async (req, res) => {
   return res.status(200).json(expenses);
 });
 
-module.exports = { createExpense, listExpenses };
+/** PATCH /expenses/:id */
+const updateExpense = asyncHandler(async (req, res) => {
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: zodMessage(parsed.error) } });
+  }
+  const expense = await svc.updateExpense(req.params.id, parsed.data);
+  return res.status(200).json(expense);
+});
+
+/** DELETE /expenses/:id */
+const deleteExpense = asyncHandler(async (req, res) => {
+  await svc.deleteExpense(req.params.id);
+  return res.status(204).send();
+});
+
+module.exports = { createExpense, listExpenses, updateExpense, deleteExpense };

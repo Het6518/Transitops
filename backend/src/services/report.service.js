@@ -51,6 +51,10 @@ async function getDashboardKPIs({ vehicleType, status } = {}) {
     where: { status: 'ON_TRIP' },
   });
 
+  const availableDrivers = await prisma.driver.count({
+    where: { status: 'AVAILABLE' },
+  });
+
   // Fleet utilization percentage: (vehicles ON_TRIP) / (total non-retired vehicles) * 100
   let fleetUtilization = 0;
   if (totalNonRetiredVehicles > 0) {
@@ -100,6 +104,7 @@ async function getDashboardKPIs({ vehicleType, status } = {}) {
     activeTrips,
     pendingTrips,
     driversOnDuty,
+    availableDrivers,
     fleetUtilization: parseFloat(fleetUtilization.toFixed(2)),
     vehicleStatusBreakdown,
     recentTrips,

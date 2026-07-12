@@ -30,4 +30,27 @@ async function listExpenses({ vehicleId } = {}) {
   });
 }
 
-module.exports = { createExpense, listExpenses };
+async function updateExpense(id, data) {
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense) throw new NotFoundError(`Expense '${id}' not found`);
+
+  if (data.vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: data.vehicleId } });
+    if (!vehicle) throw new NotFoundError(`Vehicle '${data.vehicleId}' not found`);
+  }
+
+  return prisma.expense.update({
+    where: { id },
+    data,
+    include: { vehicle: true },
+  });
+}
+
+async function deleteExpense(id) {
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense) throw new NotFoundError(`Expense '${id}' not found`);
+
+  return prisma.expense.delete({ where: { id } });
+}
+
+module.exports = { createExpense, listExpenses, updateExpense, deleteExpense };
