@@ -3,7 +3,7 @@ node_modules/
 dist/
 
 # Prisma
-prisma/migrations/
+# prisma/migrations/
 
 # Docker volumes (local)
 postgres_data/
