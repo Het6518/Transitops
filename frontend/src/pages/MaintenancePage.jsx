@@ -63,7 +63,7 @@ export default function MaintenancePage() {
   const handleClose = async (log) => {
     if (!window.confirm(`Close maintenance for vehicle ${log.vehicle?.regNo}?`)) return;
     try {
-      await client.patch(`/maintenance/${log.id}/close`);
+      await client.patch(`/maintenance/${log.id}/close`, {});
       toast('Maintenance closed — vehicle restored to Available (unless Retired)');
       fetchData();
     } catch (err) {

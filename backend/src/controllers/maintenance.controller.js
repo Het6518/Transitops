@@ -37,7 +37,7 @@ const openMaintenance = asyncHandler(async (req, res) => {
 
 /** PATCH /maintenance/:id/close (Close Maintenance) */
 const closeMaintenance = asyncHandler(async (req, res) => {
-  const parsed = closeSchema.safeParse(req.body);
+  const parsed = closeSchema.safeParse(req.body || {});
   if (!parsed.success) {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: zodMessage(parsed.error) } });
   }
