@@ -37,8 +37,8 @@ export class DashboardRepository {
     });
 
     const result = {
-      PENDING: 0,
-      ACTIVE: 0,
+      DRAFT: 0,
+      DISPATCHED: 0,
       COMPLETED: 0,
       CANCELLED: 0,
     };
@@ -62,11 +62,11 @@ export class DashboardRepository {
     });
   }
 
-  /** Count number of active drivers currently on duty (assigned to an ACTIVE trip) */
+  /** Count number of active drivers currently on duty (assigned to a DISPATCHED trip) */
   async getActiveDriversCount() {
     const activeTrips = await prisma.trip.findMany({
       where: {
-        status: TripStatus.ACTIVE,
+        status: TripStatus.DISPATCHED,
       },
       select: {
         driverId: true,

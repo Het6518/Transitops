@@ -5,6 +5,7 @@ import permissionsRouter from './permissions/permissions.routes';
 import dashboardRouter from './dashboard/dashboard.routes';
 import vehiclesRouter from './vehicles/vehicles.routes';
 import driversRouter from './drivers/drivers.routes';
+import tripsRouter from './trips/trips.routes';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/auth', authRouter);
 router.use('/dashboard', dashboardRouter);
 router.use('/vehicles', vehiclesRouter);
 router.use('/drivers', driversRouter);
+router.use('/trips', tripsRouter);
 router.use('/', permissionsRouter);
 
 // Future modules will be mounted here:

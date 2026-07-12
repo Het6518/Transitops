@@ -235,8 +235,8 @@ enum VehicleStatus {
 }
 
 enum TripStatus {
-  PENDING
-  ACTIVE
+  DRAFT
+  DISPATCHED
   COMPLETED
   CANCELLED
 }
@@ -287,17 +287,21 @@ model Route {
 }
 
 model Trip {
-  id             String     @id @default(cuid())
-  vehicleId      String     @map("vehicle_id")
-  driverId       String     @map("driver_id")
-  userId         String?    @map("user_id")
-  routeId        String     @map("route_id")
-  status         TripStatus @default(PENDING)
-  startTime      DateTime?  @map("start_time")
-  endTime        DateTime?  @map("end_time")
-  actualDistance Float?     @map("actual_distance")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  id               String     @id @default(cuid())
+  vehicleId        String     @map("vehicle_id")
+  driverId         String     @map("driver_id")
+  userId           String?    @map("user_id")
+  routeId          String     @map("route_id")
+  status           TripStatus @default(DRAFT)
+  cargoWeight      Float?     @map("cargo_weight")
+  cargoDescription String?    @map("cargo_description")
+  estimatedCost    Float?     @map("estimated_cost")
+  estimatedFuel    Float?     @map("estimated_fuel")
+  startTime        DateTime?  @map("start_time")
+  endTime          DateTime?  @map("end_time")
+  actualDistance   Float?     @map("actual_distance")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)

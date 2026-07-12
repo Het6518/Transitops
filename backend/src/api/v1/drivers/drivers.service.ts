@@ -1,6 +1,6 @@
 import { DriversRepository } from './drivers.repository';
 import { CreateDriverInput, UpdateDriverInput } from './drivers.validation';
-import { DriverStatus } from '@prisma/client';
+import { DriverStatus, TripStatus } from '@prisma/client';
 
 export class DriversService {
   private repository = new DriversRepository();
@@ -96,7 +96,7 @@ export class DriversService {
     }
 
     // Prevent deleting a driver with active trips
-    const activeTrips = driver.trips?.filter((t) => t.status === 'ACTIVE' || t.status === 'PENDING');
+    const activeTrips = driver.trips?.filter((t) => t.status === TripStatus.DISPATCHED || t.status === TripStatus.DRAFT);
     if (activeTrips && activeTrips.length > 0) {
       throw new Error(`Cannot delete driver: has ${activeTrips.length} active/pending trip(s)`);
     }
