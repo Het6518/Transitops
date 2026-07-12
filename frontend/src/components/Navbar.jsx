@@ -5,6 +5,7 @@ import { NAV_ITEMS, getAccess } from '../config/permissions';
 import ThemeToggle from './ThemeToggle';
 import UserMenu from './UserMenu';
 import MobileDrawer from './MobileDrawer';
+import LanguageSwitcher from './LanguageSwitcher';
 
 // Icons map for desktop horizontal links
 const ICONS = {
@@ -84,6 +85,7 @@ export default function Navbar() {
 
         {/* Right Section: Theme Toggle & User Info Menu */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <ThemeToggle />
           <UserMenu />
         </div>

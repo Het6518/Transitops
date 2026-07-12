@@ -6,6 +6,7 @@ import { Spinner, ErrorState, EmptyState, TableSkeleton } from '../components/St
 import { useCanWrite } from '../hooks/useCanWrite';
 import { useToast } from '../components/ToastProvider';
 import client from '../api/client';
+import TripRouteMap from '../components/TripRouteMap/TripRouteMap';
 
 const EMPTY_FORM = {
   source: '', destination: '', vehicleId: '', driverId: '',
@@ -470,6 +471,9 @@ export default function TripsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* TRIP ROUTE MAP */}
+                <TripRouteMap trip={activeTrip} />
 
                 {/* LIFECYCLE TIMELINE */}
                 <div className="space-y-4 pt-2">
