@@ -5,6 +5,82 @@ import StatusBadge from '../components/StatusBadge';
 import { Spinner, ErrorState } from '../components/States';
 import client from '../api/client';
 
+// ── Welcome Banner ───────────────────────────────────────────────────────────
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return { text: 'Good Morning', emoji: '☀️' };
+  if (h >= 12 && h < 17) return { text: 'Good Afternoon', emoji: '🌤️' };
+  return { text: 'Good Evening', emoji: '🌙' };
+}
+
+function Highlight({ children }) {
+  return (
+    <span className="font-bold text-accent">{children}</span>
+  );
+}
+
+function WelcomeBanner({ data, loading }) {
+  const { text } = getGreeting();
+
+  // Operational stats from existing data state
+  const utilization    = data?.fleetUtilization ?? 0;
+  const activeVehicles = data?.activeVehicles    ?? 0;
+  const available      = data?.availableVehicles ?? 0;
+  const inMaintenance  = data?.vehiclesInMaintenance ?? 0;
+  const activeTrips    = data?.activeTrips        ?? 0;
+  const driversOnDuty  = data?.driversOnDuty      ?? 0;
+
+  return (
+    <div
+      className="relative mb-8 rounded-2xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-raised) 100%)',
+        border: '1px solid var(--border-color)',
+        boxShadow: '0 2px 16px 0 rgba(99,102,241,0.06)',
+      }}
+    >
+      {/* Decorative background blobs */}
+      <div
+        className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #6366F1 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-6 -left-6 w-36 h-36 rounded-full opacity-10 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #F59E0B 0%, transparent 70%)' }}
+      />
+
+      <div className="relative px-6 py-6 sm:px-8 sm:py-7">
+        {/* Greeting */}
+        <div className="mb-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-onLight tracking-tight leading-tight">
+            {text}
+          </h1>
+        </div>
+
+        {/* Dynamic summary sentence */}
+        {loading ? (
+          <p className="text-sm text-ink-muted animate-pulse">Loading operational summary…</p>
+        ) : (
+          <p className="text-sm sm:text-base text-ink-muted leading-relaxed max-w-3xl">
+            Your fleet is operating at{' '}
+            <Highlight>{utilization}% utilization</Highlight> today.{' '}
+            <Highlight>{activeVehicles}</Highlight> vehicle{activeVehicles !== 1 ? 's' : ''} {activeVehicles !== 1 ? 'are' : 'is'} active,{' '}
+            <Highlight>{available}</Highlight> {available !== 1 ? 'are' : 'is'} available for dispatch,
+            {' '}and{' '}
+            <Highlight>{inMaintenance}</Highlight> {inMaintenance !== 1 ? 'are' : 'is'} currently under maintenance.
+            {activeTrips > 0 && (
+              <> You have <Highlight>{activeTrips}</Highlight> active trip{activeTrips !== 1 ? 's' : ''} in progress
+              {driversOnDuty > 0 && <> with <Highlight>{driversOnDuty}</Highlight> driver{driversOnDuty !== 1 ? 's' : ''} on duty</>}.</>
+            )}
+          </p>
+        )}
+
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const STATUS_META = {
   AVAILABLE: { label: 'Available', color: '#2F9E44', textClass: 'text-[#2F9E44]' },
   ON_TRIP:   { label: 'On Trip',   color: '#3B82F6', textClass: 'text-[#3B82F6]' },
@@ -210,6 +286,9 @@ export default function DashboardPage() {
 
   return (
     <PageLayout title="Dashboard">
+      {/* Welcome Banner */}
+      <WelcomeBanner data={data} loading={loading} />
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select
