@@ -96,6 +96,8 @@ model User {
   userPermissions UserPermission[]
   sessions        Session[]
   auditLogs       AuditLog[]
+  trips           Trip[]
+  fuelLogs        FuelLog[]
 
   @@index([email])
   @@index([role])
@@ -220,3 +222,129 @@ model SystemConfig {
 
   @@map("system_config")
 }
+
+// ============================================================
+// Operational & Business Entities
+// ============================================================
+
+enum VehicleStatus {
+  ACTIVE
+  AVAILABLE
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum TripStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TransactionType {
+  REVENUE
+  EXPENSE
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  plateNumber  String        @unique @map("plate_number")
+  model        String
+  type         String        // e.g. "Bus", "Van", "Truck"
+  status       VehicleStatus @default(AVAILABLE)
+  fuelType     String        @map("fuel_type") // e.g. "Diesel", "Petrol", "Electric"
+  fuelCapacity Float         @map("fuel_capacity")
+  mileage      Float         @default(0)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  trips        Trip[]
+  maintenances Maintenance[]
+  fuelLogs     FuelLog[]
+
+  @@map("vehicles")
+}
+
+model Route {
+  id            String   @id @default(cuid())
+  name          String   // e.g. "Route A (East-West)"
+  startLocation String   @map("start_location")
+  endLocation   String   @map("end_location")
+  distance      Float    // in km
+  duration      Int      // in minutes
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  trips Trip[]
+
+  @@map("routes")
+}
+
+model Trip {
+  id             String     @id @default(cuid())
+  vehicleId      String     @map("vehicle_id")
+  driverId       String     @map("driver_id")
+  routeId        String     @map("route_id")
+  status         TripStatus @default(PENDING)
+  startTime      DateTime?  @map("start_time")
+  endTime        DateTime?  @map("end_time")
+  actualDistance Float?     @map("actual_distance")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver  User    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  route   Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@map("trips")
+}
+
+model Maintenance {
+  id          String            @id @default(cuid())
+  vehicleId   String            @map("vehicle_id")
+  description String
+  cost        Float
+  status      MaintenanceStatus @default(SCHEDULED)
+  startDate   DateTime          @map("start_date")
+  endDate     DateTime?         @map("end_date")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("maintenances")
+}
+
+model FuelLog {
+  id        String   @id @default(cuid())
+  vehicleId String   @map("vehicle_id")
+  driverId  String   @map("driver_id")
+  liters    Float
+  cost      Float
+  odometer  Float
+  loggedAt  DateTime @default(now()) @map("logged_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver  User    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("fuel_logs")
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  type        TransactionType
+  amount      Float
+  category    String          // e.g. "FUEL", "MAINTENANCE", "TRIP_PAYMENT", "SALARY"
+  description String?
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@map("transactions")
+}
+
