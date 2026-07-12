@@ -161,6 +161,42 @@ model Expense {
 
 ---
 
+## Phase 1.5 — Schema Patch: Audit Log + DB Constraints (NEW — run this before Phase 3)
+**Goal:** Cover rules-doc §7 (DB-level constraints) and §10 (audit log entity) that were not in the original Phase 1 migration. This is additive — do not touch existing tables from Phase 1, just add a new migration on top.
+
+**Add to `schema.prisma`:**
+```prisma
+model AuditLog {
+  id         String   @id @default(uuid())
+  entityType String   // "Trip", "Vehicle", "Driver", "MaintenanceLog"
+  entityId   String
+  action     String   // "DISPATCH", "COMPLETE", "CANCEL", "MAINTENANCE_OPEN", "MAINTENANCE_CLOSE", "RETIRE"
+  performedBy String  // userId from JWT
+  beforeStatus String?
+  afterStatus  String?
+  createdAt  DateTime @default(now())
+}
+```
+
+**DB-level check constraints** (raw SQL in a migration, Prisma doesn't express these natively — add via `prisma/migrations/.../migration.sql` post-generate, or a `@@check` if your Prisma version supports it):
+```sql
+ALTER TABLE "Vehicle" ADD CONSTRAINT chk_maxload_positive CHECK ("maxLoadKg" > 0);
+ALTER TABLE "Vehicle" ADD CONSTRAINT chk_acqcost_positive CHECK ("acquisitionCost" > 0);
+ALTER TABLE "Vehicle" ADD CONSTRAINT chk_odometer_nonneg CHECK ("odometer" >= 0);
+ALTER TABLE "Driver" ADD CONSTRAINT chk_safetyscore_range CHECK ("safetyScore" BETWEEN 0 AND 100);
+ALTER TABLE "Trip" ADD CONSTRAINT chk_cargo_positive CHECK ("cargoWeightKg" > 0);
+ALTER TABLE "Trip" ADD CONSTRAINT chk_distance_positive CHECK ("plannedDistance" > 0);
+ALTER TABLE "FuelLog" ADD CONSTRAINT chk_liters_positive CHECK ("liters" > 0);
+ALTER TABLE "FuelLog" ADD CONSTRAINT chk_fuelcost_positive CHECK ("cost" > 0);
+```
+
+**Definition of Done:**
+- [ ] Migration runs clean without touching existing Phase 1 tables
+- [ ] Inserting a negative `maxLoadKg` or `cargoWeightKg` fails at the DB layer, not just app validation
+- [ ] AuditLog table exists and is ready to be written to from Phase 5/6
+
+---
+
 ## Phase 2 — Auth + RBAC
 **Goal:** All routes below this point are protected and role-aware.
 
@@ -202,9 +238,24 @@ model Expense {
 - Manual status edit via PATCH allowed only for Fleet Manager (e.g. marking `RETIRED`)
 - `GET /vehicles?status=AVAILABLE&type=truck` — fil터support for Dashboard (Phase 8 reuses this)
 
+**Field validation (zod, rules-doc §5) — reject with 400 before hitting DB:**
+- `regNo`: required, normalize to uppercase + trim, then check uniqueness
+- `name`, `type`: required, non-empty string
+- `maxLoadKg`: required, positive number
+- `odometer`: required, number >= 0
+- `acquisitionCost`: required, positive number
+- `status`: must be one of the 4 valid enum values if provided
+
+**Retire guard (rules-doc §11 edge case — "vehicle becomes retired during ongoing operation"):**
+- `PATCH /vehicles/:id` setting `status: RETIRED` must be rejected with 409 if current `status === ON_TRIP`. A vehicle must be Available or In Shop before it can be retired.
+- Every successful status change made through this endpoint writes an `AuditLog` row (`entityType: "Vehicle"`, `action: "RETIRE"` or similar, `beforeStatus`, `afterStatus`, `performedBy: req.user.id`).
+
 **Definition of Done:**
 - [ ] Duplicate regNo → 409 with clear message
 - [ ] Filters work via query params
+- [ ] Negative `maxLoadKg` or `acquisitionCost` rejected at 400 (app layer) — confirm DB constraint from Phase 1.5 also catches it if app validation is bypassed
+- [ ] Retiring an ON_TRIP vehicle rejected with 409
+- [ ] AuditLog row created on every status change
 
 ---
 
@@ -216,8 +267,18 @@ model Expense {
 - Default status = `AVAILABLE`
 - Store `licenseExpiry` as DateTime; expose a computed field `isLicenseValid` (server-side, `licenseExpiry > now()`) on every GET — Phase 5 depends on this check
 
+**Field validation (zod, rules-doc §5):**
+- `name`, `licenseCategory`: required, non-empty string
+- `licenseNo`: required, unique
+- `licenseExpiry`: required, valid date
+- `contact`: required, valid phone format (e.g. `/^\+?[0-9]{10,15}$/` — adjust to your locale's expected format)
+- `safetyScore`: required, number between 0 and 100 inclusive
+- `status`: must be one of the 4 valid enum values if provided
+
 **Definition of Done:**
 - [ ] Expired-license driver still visible in list but flagged `isLicenseValid: false`
+- [ ] `safetyScore` outside 0–100 rejected at 400
+- [ ] Malformed `contact` number rejected at 400
 
 ---
 
@@ -231,27 +292,39 @@ DRAFT --dispatch()--> DISPATCHED --complete()--> COMPLETED
 ```
 
 ### 5a. `POST /trips` (create, status=DRAFT)
-No side effects on Vehicle/Driver yet. Just validation:
-- `cargoWeightKg <= vehicle.maxLoadKg` → else 400
+No side effects on Vehicle/Driver yet, but rules-doc §6 requires checking availability at creation too, not just at dispatch — otherwise a Draft can be created against a vehicle that's already on another trip, which is confusing even if harmless until dispatch:
 - vehicle and driver must exist → else 404
+- Vehicle.status === AVAILABLE → else 409 "vehicle not available"
+- Driver.status === AVAILABLE, license not expired, not Suspended → else 409/403
+- `cargoWeightKg <= vehicle.maxLoadKg` → else 400
 
-### 5b. `POST /trips/:id/dispatch`
-**Run checks in this exact order (fail fast, return first failure):**
-1. Trip.status === DRAFT (else 409 "trip not in draft state")
-2. Vehicle.status === AVAILABLE (else 409 — covers Retired/InShop/OnTrip)
-3. Driver.status === AVAILABLE (else 409)
-4. Driver.licenseExpiry > now() (else 403 "license expired")
-5. Driver.status !== SUSPENDED (redundant with #3 but check explicitly — safety-critical)
-6. cargoWeightKg <= vehicle.maxLoadKg (re-validate — vehicle/cargo may have changed since draft)
+### 5b. `POST /trips/:id/dispatch` — must be race-safe (rules-doc §11: two users dispatching the same vehicle simultaneously)
+A plain "read status, then update" is **not** safe under concurrent requests — two requests can both read `AVAILABLE` before either writes. Use a **conditional update** that only succeeds if the row still matches the expected state, and check the affected row count:
 
-**If all pass, single Prisma `$transaction`:**
 ```js
-await prisma.$transaction([
-  prisma.trip.update({ where: {id}, data: { status: 'DISPATCHED', dispatchedAt: new Date() }}),
-  prisma.vehicle.update({ where: {id: vehicleId}, data: { status: 'ON_TRIP' }}),
-  prisma.driver.update({ where: {id: driverId}, data: { status: 'ON_TRIP' }}),
-]);
+await prisma.$transaction(async (tx) => {
+  const trip = await tx.trip.findUnique({ where: { id } });
+  if (trip.status !== 'DRAFT') throw new ConflictError('trip not in draft state');
+
+  // Conditional update — atomic compare-and-swap at the DB level
+  const vehicleUpdate = await tx.vehicle.updateMany({
+    where: { id: trip.vehicleId, status: 'AVAILABLE' },
+    data: { status: 'ON_TRIP' },
+  });
+  if (vehicleUpdate.count === 0) throw new ConflictError('vehicle no longer available');
+
+  const driverUpdate = await tx.driver.updateMany({
+    where: { id: trip.driverId, status: 'AVAILABLE' },
+    data: { status: 'ON_TRIP' },
+  });
+  if (driverUpdate.count === 0) throw new ConflictError('driver no longer available');
+
+  // Re-check license/suspension/cargo here (same as before), then:
+  await tx.trip.update({ where: { id }, data: { status: 'DISPATCHED', dispatchedAt: new Date() }});
+  await tx.auditLog.create({ data: { entityType: 'Trip', entityId: id, action: 'DISPATCH', performedBy: req.user.id, beforeStatus: 'DRAFT', afterStatus: 'DISPATCHED' }});
+});
 ```
+If the transaction throws partway through, Prisma rolls back everything — no partial state. This `updateMany` + count-check pattern (not a plain `update`) is what actually closes the race condition; a `$transaction` array alone does not.
 
 ### 5c. `POST /trips/:id/complete`
 Body: `{ actualOdometer, fuelConsumed }`
@@ -260,18 +333,27 @@ Body: `{ actualOdometer, fuelConsumed }`
   - Trip.status = COMPLETED, completedAt = now, store actualOdometer + fuelConsumed
   - Vehicle.status = AVAILABLE, Vehicle.odometer = actualOdometer
   - Driver.status = AVAILABLE
+  - AuditLog row: action `COMPLETE`
 - Optionally auto-create a FuelLog entry from `fuelConsumed` if a cost-per-liter is provided (flag to user — spec doesn't specify cost input here, may need a separate fuel log call)
 
 ### 5d. `POST /trips/:id/cancel`
 - Allowed from DRAFT or DISPATCHED only
 - If DRAFT → just set CANCELLED, no entity side effects (nothing was reserved)
 - If DISPATCHED → transaction: Trip.status=CANCELLED, Vehicle.status=AVAILABLE, Driver.status=AVAILABLE
+- AuditLog row: action `CANCEL`
+
+### 5e. Immutability guard (NEW — rules-doc §6)
+- `PATCH /trips/:id` (general field edit, as opposed to the status-transition endpoints above) must be rejected with 409 if `Trip.status` is `COMPLETED` or `CANCELLED` — these are terminal states and must not be edited except through a separate, explicitly-labeled admin-correction endpoint (out of scope for the 8hr build unless you want it — flag to user).
+- A `DISPATCHED` trip may only be edited through the `complete`/`cancel` endpoints above, never through a raw field PATCH — this prevents someone quietly changing `vehicleId` mid-trip and breaking the audit trail.
 
 **Definition of Done:**
 - [ ] Every transition covered by the example workflow (spec section 5) passes end-to-end
 - [ ] Attempting to dispatch an already-OnTrip vehicle fails with 409
 - [ ] Attempting cargo > maxLoad fails with 400 at both draft and dispatch time
 - [ ] No orphaned states possible (kill the server mid-request in testing — DB should never show Vehicle=OnTrip with no active Trip)
+- [ ] Two concurrent dispatch requests against the same vehicle — only one succeeds, the other gets a clean 409, not a double-booked vehicle
+- [ ] Editing a COMPLETED or CANCELLED trip via PATCH is rejected
+- [ ] AuditLog rows created for dispatch/complete/cancel
 
 ---
 
@@ -285,10 +367,14 @@ Body: `{ actualOdometer, fuelConsumed }`
 - `PATCH /maintenance/:id/close`:
   - Transaction: MaintenanceLog.isActive=false, endDate=now, Vehicle.status = AVAILABLE **unless** Vehicle.status was manually set to RETIRED (check before reverting — don't un-retire a vehicle)
 - A vehicle in `IN_SHOP` must be excluded from `GET /vehicles?status=AVAILABLE` used by Trip dispatch dropdown (already covered by Phase 3 filter — verify here)
+- Both create and close operations write an `AuditLog` row (`action: "MAINTENANCE_OPEN"` / `"MAINTENANCE_CLOSE"`)
+- Rules-doc §6: "a maintenance record cannot be closed unless it was opened first" — enforced by checking `MaintenanceLog.isActive === true` before allowing close (already implied by your `isActive` field, just make the check explicit and return 409 if already closed)
 
 **Definition of Done:**
 - [ ] Creating maintenance on an On-Trip vehicle is rejected
 - [ ] Closing maintenance on a Retired vehicle keeps it Retired, not Available
+- [ ] Closing an already-closed maintenance record returns 409, not a silent no-op
+- [ ] AuditLog rows created on open/close
 
 ---
 
@@ -306,8 +392,11 @@ Body: `{ actualOdometer, fuelConsumed }`
   ```
   (Spec 3.7 defines operational cost as Fuel + Maintenance only — Expense/tolls tracked separately unless user confirms otherwise)
 
+> ⚠️ Open decision (rules-doc §11 edge case, not resolved by either doc): should `POST /vehicles/:id/fuel-logs` be **allowed** while `Vehicle.status === IN_SHOP`? Plausible either way — a vehicle could be refueled just before entering the shop, or someone could be back-dating a log. Default to **allow it** (fuel logs are historical records, not availability-affecting), but confirm with the user before assuming.
+
 **Definition of Done:**
 - [ ] Cost summary math verified against a manually-computed example
+- [ ] Explicit decision made (and documented in code comments) on whether fuel logs are blocked for IN_SHOP vehicles
 
 ---
 
@@ -328,15 +417,26 @@ fleetUtilization%   = (Vehicle WHERE status == ON_TRIP) / (total non-retired veh
 ```
 fuelEfficiency = totalDistanceDriven / totalFuelConsumed   (from completed trips + fuel logs)
 operationalCost = totalFuelCost + totalMaintenanceCost      (from Phase 7)
-vehicleROI = (Revenue - (Maintenance + Fuel)) / AcquisitionCost
+vehicleROI = ??? — SEE CONFLICT BELOW, DO NOT IMPLEMENT UNTIL RESOLVED
 ```
-> ⚠️ Gap to flag: spec doesn't define where "Revenue" comes from — no revenue/billing entity exists in section 6. Confirm with user whether trips carry a revenue/fare field, or whether ROI is out of scope for the 8hr build.
+> 🛑 **Formula conflict, needs your decision before building this metric:**
+> - Original spec (PDF §3.8): `(Revenue - (Maintenance + Fuel)) / AcquisitionCost` — a ratio, ROI as % of what was invested
+> - New rules doc (§9): `Revenue - Maintenance - Fuel - AcquisitionCost` — an absolute profit/loss number, not a ratio
+> These produce very different numbers and different units (percentage vs currency). Also, neither doc defines where "Revenue" comes from — no revenue/fare field exists on Trip in the current schema. Pick one formula and, if you want ROI at all, add a `revenue` or `farePerTrip` field to Trip in a Phase 1.5-style patch migration. If time is tight, cutting ROI from the 8hr scope and noting it as a stretch goal in your demo is a reasonable call.
+
+**License expiry alerts (NEW — rules-doc §9):**
+`GET /reports/license-alerts?withinDays=30` — returns drivers where `licenseExpiry` is between now and now+withinDays, sorted soonest-first. Reuses the `isLicenseValid` logic from Phase 4.
+
+**Maintenance summary (NEW — rules-doc §9):**
+`GET /reports/maintenance-summary` — per vehicle: count of maintenance records, total maintenance cost, most recent maintenance date, currently-active maintenance (if any).
 
 **`GET /reports/export.csv`** — stream computed report rows as CSV (use `json2csv` or manual stringify, no need for a heavy lib)
 
 **Definition of Done:**
 - [ ] Dashboard numbers match manual DB query on seeded data
 - [ ] CSV downloads and opens correctly in Excel/Sheets
+- [ ] ROI formula decision made explicitly (or explicitly deferred) before writing the endpoint
+- [ ] License alerts and maintenance summary endpoints return correct data against seeded test data
 
 ---
 
@@ -357,5 +457,8 @@ vehicleROI = (Revenue - (Maintenance + Fuel)) / AcquisitionCost
 - Never expose `passwordHash` in any response
 
 ## Open questions to resolve with the user before/during Phase 8
-1. Where does trip "Revenue" for ROI come from — is there a fare field to add to Trip?
-2. Does `region` (used in Dashboard filter) exist anywhere in the current schema — needs adding to Vehicle if required.
+1. **ROI formula conflict** — spec PDF says `(Revenue-(Maint+Fuel))/AcquisitionCost`, rules doc says `Revenue-Maintenance-Fuel-AcquisitionCost`. Pick one before implementing.
+2. Where does trip "Revenue" for ROI come from — is there a fare field to add to Trip? (blocks #1 either way)
+3. Does `region` (used in Dashboard filter) exist anywhere in the current schema — needs adding to Vehicle if required.
+4. Should fuel logs be blocked for vehicles currently `IN_SHOP`? (Phase 7 default: allow, unconfirmed)
+5. Is an admin-correction endpoint for COMPLETED/CANCELLED trips in scope for the 8hr build, or is hard immutability (Phase 5e) acceptable for the demo?

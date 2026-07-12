@@ -146,3 +146,21 @@ model Expense {
   amount    Float
   date      DateTime @default(now())
 }
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+/// Immutable record of every state-changing operation.
+/// Written inside the same $transaction as the state change — never after.
+model AuditLog {
+  id           String   @id @default(uuid())
+  entityType   String   // "Trip" | "Vehicle" | "Driver" | "MaintenanceLog"
+  entityId     String
+  action       String   // "DISPATCH" | "COMPLETE" | "CANCEL" | "MAINTENANCE_OPEN" | "MAINTENANCE_CLOSE" | "RETIRE"
+  performedBy  String   // userId from JWT (req.user.userId)
+  beforeStatus String?  // status value before the transition
+  afterStatus  String?  // status value after the transition
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([performedBy])
+}
