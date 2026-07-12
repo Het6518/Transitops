@@ -66,13 +66,20 @@ const getReports = asyncHandler(async (req, res) => {
   const vehiclesOnTrip = await prisma.vehicle.count({ where: { status: 'ON_TRIP' } });
   const fleetUtilization = totalVehicles > 0 ? parseFloat(((vehiclesOnTrip / totalVehicles) * 100).toFixed(2)) : 0;
 
+  // Fetch fuel logs for trend and vehicle graphs
+  const fuelLogs = await prisma.fuelLog.findMany({
+    include: { vehicle: true },
+    orderBy: { date: 'asc' }
+  });
+
   return res.status(200).json({
     fuelEfficiency,
     fleetUtilization,
     totalOperationalCost,
     vehicleROI,
     costliestVehicles,
-    vehicleROIs
+    vehicleROIs,
+    fuelLogs
   });
 });
 

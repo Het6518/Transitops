@@ -18,6 +18,347 @@ function deriveMonthlyRevenue(trips) {
   return Object.entries(map).map(([month, revenue]) => ({ month, revenue }));
 }
 
+// Monthly Fuel Cost Trend Chart Component
+function FuelTrendChart({ fuelLogs }) {
+  const monthlyMap = {};
+  fuelLogs.forEach(log => {
+    if (!log.date) return;
+    const d = new Date(log.date);
+    if (isNaN(d.getTime())) return;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const key = `${year}-${month}`;
+    monthlyMap[key] = (monthlyMap[key] || 0) + log.cost;
+  });
+
+  const sortedMonths = Object.keys(monthlyMap).sort();
+  const chartData = sortedMonths.map(month => ({
+    label: month,
+    value: monthlyMap[month]
+  })).slice(-6);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-5 h-64 flex flex-col justify-center items-center text-ink-muted text-sm border border-gray-100">
+        <h3 className="text-sm font-semibold text-ink-onLight mb-2 self-start">Monthly Fuel Cost Trend</h3>
+        <p className="text-ink-muted">No fuel logs recorded yet</p>
+      </div>
+    );
+  }
+
+  const width = 500;
+  const height = 220;
+  const paddingLeft = 50;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const graphWidth = width - paddingLeft - paddingRight;
+  const graphHeight = height - paddingTop - paddingBottom;
+
+  const values = chartData.map(d => d.value);
+  const maxVal = Math.max(...values, 6000);
+  const yCeil = maxVal > 6000 ? Math.ceil(maxVal / 1000) * 1000 : 6000;
+
+  const gridCount = 4;
+  const gridSteps = Array.from({ length: gridCount + 1 }, (_, i) => (yCeil / gridCount) * i);
+
+  const points = chartData.map((d, i) => {
+    const x = paddingLeft + (chartData.length > 1 ? (i / (chartData.length - 1)) * graphWidth : graphWidth / 2);
+    const y = paddingTop + graphHeight - (d.value / yCeil) * graphHeight;
+    return { x, y, label: d.label, value: d.value };
+  });
+
+  let lineD = '';
+  if (points.length > 0) {
+    lineD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const cpX1 = p0.x + (p1.x - p0.x) / 3;
+      const cpY1 = p0.y;
+      const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+      const cpY2 = p1.y;
+      lineD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+      <h3 className="text-sm font-semibold text-ink-onLight mb-4">Monthly Fuel Cost Trend</h3>
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+          {/* Horizontal Grid lines & Y Axis Labels */}
+          {gridSteps.map((step, idx) => {
+            const y = paddingTop + graphHeight - (step / yCeil) * graphHeight;
+            return (
+              <g key={step}>
+                {idx > 0 && (
+                  <line
+                    x1={paddingLeft}
+                    y1={y}
+                    x2={width - paddingRight}
+                    y2={y}
+                    stroke="var(--border-color)"
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                  />
+                )}
+                <text
+                  x={paddingLeft - 8}
+                  y={y + 3}
+                  textAnchor="end"
+                  fill="currentColor"
+                  className="text-[10px] font-medium text-ink-muted"
+                >
+                  {Math.round(step)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Left Y Axis Line */}
+          <line
+            x1={paddingLeft}
+            y1={paddingTop}
+            x2={paddingLeft}
+            y2={paddingTop + graphHeight}
+            stroke="var(--border-color)"
+            strokeWidth={1}
+          />
+
+          {/* Bottom X Axis Line */}
+          <line
+            x1={paddingLeft}
+            y1={paddingTop + graphHeight}
+            x2={width - paddingRight}
+            y2={paddingTop + graphHeight}
+            stroke="var(--border-color)"
+            strokeWidth={1}
+          />
+
+          {/* Curved Line Path */}
+          {lineD && (
+            <path
+              d={lineD}
+              fill="none"
+              stroke="#3B82F6"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Data Points */}
+          {points.map((pt, idx) => (
+            <g key={idx} className="group cursor-pointer">
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={4}
+                fill="var(--bg-card)"
+                stroke="#3B82F6"
+                strokeWidth={2}
+              />
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={10}
+                fill="transparent"
+              />
+              <title>{`${pt.label}: ₹${pt.value.toLocaleString()}`}</title>
+            </g>
+          ))}
+
+          {/* X Axis Labels */}
+          {points.map((pt, idx) => (
+            <g key={idx}>
+              {/* Tick */}
+              <line
+                x1={pt.x}
+                y1={paddingTop + graphHeight}
+                x2={pt.x}
+                y2={paddingTop + graphHeight + 4}
+                stroke="var(--border-color)"
+                strokeWidth={1}
+              />
+              <text
+                x={pt.x}
+                y={height - 10}
+                textAnchor="middle"
+                fill="currentColor"
+                className="text-[10px] font-medium text-ink-muted"
+              >
+                {pt.label}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// Top Vehicles by Fuel Cost Chart Component
+function FuelVehiclesChart({ fuelLogs }) {
+  const vehicleMap = {};
+  fuelLogs.forEach(log => {
+    if (!log.vehicle?.regNo) return;
+    const regNo = log.vehicle.regNo;
+    vehicleMap[regNo] = (vehicleMap[regNo] || 0) + log.cost;
+  });
+
+  const sortedVehicles = Object.entries(vehicleMap)
+    .map(([regNo, cost]) => ({ label: regNo, value: cost }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+
+  if (sortedVehicles.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-5 h-64 flex flex-col justify-center items-center text-ink-muted text-sm border border-gray-100">
+        <h3 className="text-sm font-semibold text-ink-onLight mb-2 self-start">Top Vehicles by Fuel Cost</h3>
+        <p className="text-ink-muted">No fuel logs recorded yet</p>
+      </div>
+    );
+  }
+
+  const width = 500;
+  const height = 220;
+  const paddingLeft = 50;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const graphWidth = width - paddingLeft - paddingRight;
+  const graphHeight = height - paddingTop - paddingBottom;
+
+  const values = sortedVehicles.map(d => d.value);
+  const maxVal = Math.max(...values, 1600);
+  const yCeil = maxVal > 1600 ? Math.ceil(maxVal / 400) * 400 : 1600;
+
+  const gridCount = 4;
+  const gridSteps = Array.from({ length: gridCount + 1 }, (_, i) => (yCeil / gridCount) * i);
+
+  const barCount = sortedVehicles.length;
+  const barWidth = (graphWidth / barCount) * 0.6;
+  const gap = (graphWidth / barCount) * 0.4;
+
+  const getBarPath = (x, y, w, h, r) => {
+    if (h <= r) return `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+    return `
+      M ${x} ${y + r}
+      A ${r} ${r} 0 0 1 ${x + r} ${y}
+      L ${x + w - r} ${y}
+      A ${r} ${r} 0 0 1 ${x + w} ${y + r}
+      L ${x + w} ${y + h}
+      L ${x} ${y + h}
+      Z
+    `;
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+      <h3 className="text-sm font-semibold text-ink-onLight mb-4">Top Vehicles by Fuel Cost</h3>
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+          {/* Horizontal Grid lines & Y Axis Labels */}
+          {gridSteps.map((step, idx) => {
+            const y = paddingTop + graphHeight - (step / yCeil) * graphHeight;
+            return (
+              <g key={step}>
+                {idx > 0 && (
+                  <line
+                    x1={paddingLeft}
+                    y1={y}
+                    x2={width - paddingRight}
+                    y2={y}
+                    stroke="var(--border-color)"
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                  />
+                )}
+                <text
+                  x={paddingLeft - 8}
+                  y={y + 3}
+                  textAnchor="end"
+                  fill="currentColor"
+                  className="text-[10px] font-medium text-ink-muted"
+                >
+                  {Math.round(step)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Left Y Axis Line */}
+          <line
+            x1={paddingLeft}
+            y1={paddingTop}
+            x2={paddingLeft}
+            y2={paddingTop + graphHeight}
+            stroke="var(--border-color)"
+            strokeWidth={1}
+          />
+
+          {/* Bottom X Axis Line */}
+          <line
+            x1={paddingLeft}
+            y1={paddingTop + graphHeight}
+            x2={width - paddingRight}
+            y2={paddingTop + graphHeight}
+            stroke="var(--border-color)"
+            strokeWidth={1}
+          />
+
+          {/* Bars with rounded top corners */}
+          {sortedVehicles.map((d, i) => {
+            const x = paddingLeft + i * (barWidth + gap) + gap / 2;
+            const barHeight = (d.value / yCeil) * graphHeight;
+            const y = paddingTop + graphHeight - barHeight;
+            const pathD = getBarPath(x, y, barWidth, barHeight, 4);
+            return (
+              <g key={i} className="group cursor-pointer">
+                <path
+                  d={pathD}
+                  fill="#3B82F6"
+                  className="transition-colors duration-150 group-hover:fill-blue-500"
+                />
+                <title>{`${d.label}: ₹${d.value.toLocaleString()}`}</title>
+              </g>
+            );
+          })}
+
+          {/* X Axis Labels */}
+          {sortedVehicles.map((d, i) => {
+            const x = paddingLeft + i * (barWidth + gap) + gap / 2 + barWidth / 2;
+            return (
+              <g key={i}>
+                <line
+                  x1={x}
+                  y1={paddingTop + graphHeight}
+                  x2={x}
+                  y2={paddingTop + graphHeight + 4}
+                  stroke="var(--border-color)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={x}
+                  y={height - 10}
+                  textAnchor="middle"
+                  fill="currentColor"
+                  className="text-[9px] font-semibold text-ink-muted"
+                >
+                  {d.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const toast = useToast();
   const canExport = useCanWrite('report', 'create');
@@ -151,6 +492,12 @@ export default function AnalyticsPage() {
               accent="bg-accent"
               sub="ROI = (revenue − opCost) ÷ acquisitionCost × 100"
             />
+          </div>
+          
+          {/* Fuel Analytics Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <FuelTrendChart fuelLogs={report.fuelLogs ?? []} />
+            <FuelVehiclesChart fuelLogs={report.fuelLogs ?? []} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

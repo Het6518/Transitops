@@ -339,15 +339,35 @@ async function main() {
 
   // ─── 9. Seed Fuel & Expenses ────────────────────────────────────────────────
   console.log('⛽ Seeding Fuel Logs & Expenses...');
-  const fuelCount = await prisma.fuelLog.count();
-  if (fuelCount === 0) {
-    await prisma.fuelLog.createMany({
-      data: [
-        { vehicleId: vehicleMap['MH12AB1001'], liters: 45, cost: 90, date: new Date('2026-07-01T08:30:00Z') },
-        { vehicleId: vehicleMap['MH12AB1002'], liters: 15, cost: 32, date: new Date('2026-07-02T10:15:00Z') }
-      ]
-    });
-  }
+  await prisma.fuelLog.deleteMany();
+  await prisma.fuelLog.createMany({
+    data: [
+      // April 2026
+      { vehicleId: vehicleMap['MH12AB1001'], liters: 300, cost: 600, date: new Date('2026-04-10T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1002'], liters: 250, cost: 500, date: new Date('2026-04-15T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1003'], liters: 225, cost: 450, date: new Date('2026-04-20T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1004'], liters: 200, cost: 400, date: new Date('2026-04-25T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1005'], liters: 225, cost: 450, date: new Date('2026-04-28T12:00:00Z') },
+      // May 2026
+      { vehicleId: vehicleMap['MH12AB1001'], liters: 750, cost: 1500, date: new Date('2026-05-05T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1002'], liters: 600, cost: 1200, date: new Date('2026-05-12T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1003'], liters: 550, cost: 1100, date: new Date('2026-05-18T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1004'], liters: 500, cost: 1000, date: new Date('2026-05-22T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1005'], liters: 400, cost: 800, date: new Date('2026-05-26T12:00:00Z') },
+      // June 2026
+      { vehicleId: vehicleMap['MH12AB1001'], liters: 650, cost: 1300, date: new Date('2026-06-04T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1002'], liters: 500, cost: 1000, date: new Date('2026-06-10T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1003'], liters: 475, cost: 950, date: new Date('2026-06-16T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1004'], liters: 425, cost: 850, date: new Date('2026-06-22T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1005'], liters: 350, cost: 700, date: new Date('2026-06-28T12:00:00Z') },
+      // July 2026
+      { vehicleId: vehicleMap['MH12AB1001'], liters: 325, cost: 650, date: new Date('2026-07-02T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1002'], liters: 275, cost: 550, date: new Date('2026-07-05T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1003'], liters: 250, cost: 500, date: new Date('2026-07-08T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1004'], liters: 225, cost: 450, date: new Date('2026-07-10T12:00:00Z') },
+      { vehicleId: vehicleMap['MH12AB1005'], liters: 150, cost: 300, date: new Date('2026-07-12T12:00:00Z') },
+    ]
+  });
 
   const expenseCount = await prisma.expense.count();
   if (expenseCount === 0) {
