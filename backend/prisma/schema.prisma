@@ -228,10 +228,10 @@ model SystemConfig {
 // ============================================================
 
 enum VehicleStatus {
-  ACTIVE
   AVAILABLE
-  MAINTENANCE
-  OUT_OF_SERVICE
+  ON_TRIP
+  IN_SHOP
+  RETIRED
 }
 
 enum TripStatus {

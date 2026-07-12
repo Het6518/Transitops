@@ -22,21 +22,21 @@ export class DashboardService {
     ]);
 
     const totalVehicles =
-      vehicleCounts.ACTIVE +
       vehicleCounts.AVAILABLE +
-      vehicleCounts.MAINTENANCE +
-      vehicleCounts.OUT_OF_SERVICE;
+      vehicleCounts.ON_TRIP +
+      vehicleCounts.IN_SHOP +
+      vehicleCounts.RETIRED;
 
-    // Fleet utilization = (Active Vehicles / Total Vehicles) * 100
+    // Fleet utilization = (AVAILABLE + ON_TRIP) / total
     const fleetUtilization = totalVehicles > 0
-      ? Math.round(((vehicleCounts.ACTIVE + vehicleCounts.AVAILABLE) / totalVehicles) * 1000) / 10
+      ? Math.round(((vehicleCounts.AVAILABLE + vehicleCounts.ON_TRIP) / totalVehicles) * 1000) / 10
       : 0;
 
     return {
       fleetUtilization,
-      activeVehicles: vehicleCounts.ACTIVE,
+      activeVehicles: vehicleCounts.ON_TRIP,
       availableVehicles: vehicleCounts.AVAILABLE,
-      maintenanceVehicles: vehicleCounts.MAINTENANCE,
+      maintenanceVehicles: vehicleCounts.IN_SHOP,
       activeTrips: tripCounts.ACTIVE,
       pendingTrips: tripCounts.PENDING,
       driversOnDuty: activeDrivers,
@@ -117,10 +117,10 @@ export class DashboardService {
 
     // 1. Pie Chart data (Vehicle Status)
     const pieChart = [
-      { name: 'Active', value: vehicleCounts.ACTIVE, color: '#3b82f6' },
       { name: 'Available', value: vehicleCounts.AVAILABLE, color: '#10b981' },
-      { name: 'Maintenance', value: vehicleCounts.MAINTENANCE, color: '#f59e0b' },
-      { name: 'Out of Service', value: vehicleCounts.OUT_OF_SERVICE, color: '#ef4444' },
+      { name: 'On Trip', value: vehicleCounts.ON_TRIP, color: '#3b82f6' },
+      { name: 'In Shop', value: vehicleCounts.IN_SHOP, color: '#f59e0b' },
+      { name: 'Retired', value: vehicleCounts.RETIRED, color: '#ef4444' },
     ];
 
     // 2. Area Chart data (Financial trends last 6 months)

@@ -12,10 +12,10 @@ export class DashboardRepository {
     });
 
     const result = {
-      ACTIVE: 0,
       AVAILABLE: 0,
-      MAINTENANCE: 0,
-      OUT_OF_SERVICE: 0,
+      ON_TRIP: 0,
+      IN_SHOP: 0,
+      RETIRED: 0,
     };
 
     counts.forEach((c) => {
