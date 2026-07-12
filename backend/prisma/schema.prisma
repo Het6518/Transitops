@@ -1,0 +1,189 @@
+// ============================================================
+// Prisma Schema — TransitOps Foundation
+// Phase 0: Auth, Permissions, Audit infrastructure
+// Business entities (Fleet, Routes, Drivers, etc.) added in subsequent phases
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  OPERATOR
+  DISPATCHER
+  DRIVER
+  VIEWER
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+
+  @@map("user_status")
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXPORT
+  IMPORT
+  APPROVE
+  REJECT
+
+  @@map("permission_action")
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  EXPORT
+  IMPORT
+  PERMISSION_CHANGE
+  PASSWORD_CHANGE
+  PROFILE_UPDATE
+
+  @@map("audit_action")
+}
+
+// ============================================================
+// Core Models
+// ============================================================
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  firstName String     @map("first_name")
+  lastName  String     @map("last_name")
+  role      UserRole   @default(VIEWER)
+  status    UserStatus @default(ACTIVE)
+  avatar    String?
+  phone     String?
+  timezone  String     @default("UTC")
+
+  // Metadata
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  userPermissions UserPermission[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique  // e.g. "fleet:create"
+  displayName String           @map("display_name")
+  description String?
+  module      String           // e.g. "fleet", "routes", "drivers"
+  action      PermissionAction
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userPermissions UserPermission[]
+
+  @@index([module])
+  @@index([name])
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String  @id @default(cuid())
+  userId       String  @map("user_id")
+  permissionId String  @map("permission_id")
+  granted      Boolean @default(true)
+
+  grantedAt DateTime  @default(now()) @map("granted_at")
+  expiresAt DateTime? @map("expires_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+  @@map("user_permissions")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  refreshToken String   @unique @map("refresh_token")
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+  isRevoked    Boolean  @default(false) @map("is_revoked")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?     @map("user_id")
+  action    AuditAction
+  module    String
+  entityId  String?     @map("entity_id")
+  entityType String?    @map("entity_type")
+  oldValues Json?       @map("old_values")
+  newValues Json?       @map("new_values")
+  metadata  Json?
+  ipAddress String?     @map("ip_address")
+  userAgent String?     @map("user_agent")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       String
+  description String?
+  isPublic    Boolean @default(false) @map("is_public")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
