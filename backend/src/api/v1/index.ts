@@ -7,6 +7,8 @@ import vehiclesRouter from './vehicles/vehicles.routes';
 import driversRouter from './drivers/drivers.routes';
 import tripsRouter from './trips/trips.routes';
 import maintenanceRouter from './maintenance/maintenance.routes';
+import fuelRouter from './fuel/fuel.routes';
+import expensesRouter from './expenses/expenses.routes';
 
 const router = Router();
 
@@ -18,16 +20,12 @@ router.use('/vehicles', vehiclesRouter);
 router.use('/drivers', driversRouter);
 router.use('/trips', tripsRouter);
 router.use('/maintenance', maintenanceRouter);
+router.use('/fuel', fuelRouter);
+router.use('/expenses', expensesRouter);
 router.use('/', permissionsRouter);
 
 // Future modules will be mounted here:
-// router.use('/fleet', fleetRouter);
 // router.use('/routes', routeRouter);
-// router.use('/drivers', driverRouter);
-// router.use('/trips', tripRouter);
-// router.use('/maintenance', maintenanceRouter);
-// router.use('/fuel', fuelRouter);
-// router.use('/finance', financeRouter);
 // router.use('/reports', reportsRouter);
 // router.use('/users', usersRouter);
 // router.use('/settings', settingsRouter);

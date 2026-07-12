@@ -270,6 +270,7 @@ model Vehicle {
   trips        Trip[]
   maintenances Maintenance[]
   fuelLogs     FuelLog[]
+  expenses     Expense[]
 
   @@map("vehicles")
 }
@@ -310,6 +311,9 @@ model Trip {
   driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   route   Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  
+  fuelLogs FuelLog[]
+  expenses Expense[]
 
   @@map("trips")
 }
@@ -338,18 +342,39 @@ model Maintenance {
 model FuelLog {
   id        String   @id @default(cuid())
   vehicleId String   @map("vehicle_id")
+  tripId    String?  @map("trip_id")
   driverId  String   @map("driver_id")
   userId    String?  @map("user_id")
+  fuelType  String   @default("Diesel") @map("fuel_type")
   liters    Float
   cost      Float
   odometer  Float
   loggedAt  DateTime @default(now()) @map("logged_at")
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip    Trip?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
   driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("fuel_logs")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  vehicleId   String   @map("vehicle_id")
+  tripId      String?  @map("trip_id")
+  category    String   // e.g. "MAINTENANCE", "TOLL", "PARKING", "MISC"
+  amount      Float
+  date        DateTime @default(now())
+  description String?
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip        Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
 }
 
 model Transaction {

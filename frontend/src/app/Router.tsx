@@ -13,6 +13,8 @@ const FleetPage = lazy(() => import('@/features/fleet/pages/FleetPage'));
 const DriversPage = lazy(() => import('@/features/drivers/pages/DriversPage'));
 const TripsPage = lazy(() => import('@/features/trips/pages/TripsPage'));
 const MaintenancePage = lazy(() => import('@/features/maintenance/pages/MaintenancePage'));
+const FuelPage = lazy(() => import('@/features/fuel/pages/FuelPage'));
+const ExpensesPage = lazy(() => import('@/features/expenses/pages/ExpensesPage'));
 const UnauthorizedPage = lazy(() => import('@/components/common/UnauthorizedPage'));
 
 // Placeholder pages for modules not yet built
@@ -112,8 +114,22 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      { path: ROUTES.FUEL, element: <ComingSoon module="Fuel Management" /> },
-      { path: ROUTES.FINANCE, element: <ComingSoon module="Finance" /> },
+      {
+        path: ROUTES.FUEL,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <FuelPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.FINANCE,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ExpensesPage />
+          </Suspense>
+        ),
+      },
       { path: ROUTES.REPORTS, element: <ComingSoon module="Reports & Analytics" /> },
       { path: ROUTES.USERS, element: <ComingSoon module="User Management" /> },
       { path: ROUTES.SETTINGS, element: <ComingSoon module="Settings" /> },
