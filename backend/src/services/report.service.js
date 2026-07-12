@@ -57,14 +57,52 @@ async function getDashboardKPIs({ vehicleType, status } = {}) {
     fleetUtilization = (vehiclesOnTrip / totalNonRetiredVehicles) * 100;
   }
 
+  // Get vehicle status breakdown
+  const vehicleStatuses = await prisma.vehicle.groupBy({
+    by: ['status'],
+    _count: {
+      status: true,
+    },
+    where: vehicleType ? { type: vehicleType } : {},
+  });
+
+  const vehicleStatusBreakdown = {
+    AVAILABLE: 0,
+    ON_TRIP:   0,
+    IN_SHOP:   0,
+    RETIRED:   0,
+  };
+  for (const item of vehicleStatuses) {
+    if (item.status in vehicleStatusBreakdown) {
+      vehicleStatusBreakdown[item.status] = item._count.status;
+    }
+  }
+
+  // Get recent trips
+  const recentTrips = await prisma.trip.findMany({
+    where: {
+      ...(vehicleType ? { vehicle: { type: vehicleType } } : {}),
+      ...(status ? { status } : {}),
+    },
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      vehicle: true,
+      driver: true,
+    },
+  });
+
   return {
     activeVehicles,
     availableVehicles,
     inMaintenance,
+    vehiclesInMaintenance: inMaintenance,
     activeTrips,
     pendingTrips,
     driversOnDuty,
     fleetUtilization: parseFloat(fleetUtilization.toFixed(2)),
+    vehicleStatusBreakdown,
+    recentTrips,
   };
 }
 
