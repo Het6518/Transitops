@@ -70,94 +70,96 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
         <p className="text-xs text-ink-muted mb-4">Current vehicle allocation and operational status</p>
       </div>
 
-      <div className="relative flex justify-center items-center my-4">
-        <svg viewBox="0 0 160 160" className="w-40 h-40 overflow-visible">
-          {/* Base/Background circle ring */}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={radius}
-            fill="transparent"
-            stroke="var(--border-color)"
-            strokeWidth={14}
-          />
-          
-          {/* Segments */}
-          {segments.map((seg, idx) => {
-            const strokeLength = seg.percent * circumference;
-            // Subtract small gap between segments if there are multiple segments
-            const displayStrokeLength = segments.length > 1 ? strokeLength - 2 : strokeLength;
-            const strokeDasharray = `${Math.max(0.1, displayStrokeLength)} ${circumference}`;
-            const strokeDashoffset = -seg.accumulatedPercent * circumference;
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-8 my-auto p-2">
+        {/* SVG Circle Section */}
+        <div className="relative flex justify-center items-center shrink-0">
+          <svg viewBox="0 0 160 160" className="w-48 h-48 overflow-visible">
+            {/* Base/Background circle ring */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={radius}
+              fill="transparent"
+              stroke="var(--border-color)"
+              strokeWidth={14}
+            />
+            
+            {/* Segments */}
+            {segments.map((seg, idx) => {
+              const strokeLength = seg.percent * circumference;
+              const displayStrokeLength = segments.length > 1 ? strokeLength - 2 : strokeLength;
+              const strokeDasharray = `${Math.max(0.1, displayStrokeLength)} ${circumference}`;
+              const strokeDashoffset = -seg.accumulatedPercent * circumference;
 
+              return (
+                <circle
+                  key={seg.status}
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
+                  fill="transparent"
+                  stroke={STATUS_META[seg.status].color}
+                  strokeWidth={14}
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  transform={`rotate(-90 ${cx} ${cy})`}
+                  className="cursor-pointer transition-all duration-250 hover:stroke-[16px]"
+                  onMouseMove={(e) => handleMouseMove(e, seg.status, seg.count)}
+                  onMouseLeave={handleMouseLeave}
+                />
+              );
+            })}
+
+            {/* Central Total indicator */}
+            <g className="pointer-events-none">
+              <text
+                x={cx}
+                y={cy - 4}
+                textAnchor="middle"
+                className="text-[10px] font-bold text-ink-muted uppercase tracking-wider"
+                fill="currentColor"
+              >
+                Total
+              </text>
+              <text
+                x={cx}
+                y={cy + 12}
+                textAnchor="middle"
+                className="text-lg font-extrabold text-ink-onLight"
+                fill="currentColor"
+              >
+                {total}
+              </text>
+            </g>
+          </svg>
+
+          {/* Custom floating tooltip overlay */}
+          {activeTooltip && (
+            <div
+              className="absolute bg-white dark:bg-brand-dark-raised text-ink-onLight shadow-lg border border-gray-100 dark:border-brand-dark rounded px-3 py-1.5 text-xs font-semibold pointer-events-none z-10 transition-all duration-75"
+              style={{ left: activeTooltip.x + 12, top: activeTooltip.y - 12 }}
+            >
+              {STATUS_META[activeTooltip.status].label} : {activeTooltip.count}
+            </div>
+          )}
+        </div>
+
+        {/* Vertical Legend on the right */}
+        <div className="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[150px] border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-brand-dark pt-4 sm:pt-0 sm:pl-6">
+          {statuses.map(status => {
+            const count = vehicleStatusBars[status] || 0;
+            const meta = STATUS_META[status];
             return (
-              <circle
-                key={seg.status}
-                cx={cx}
-                cy={cy}
-                r={radius}
-                fill="transparent"
-                stroke={STATUS_META[seg.status].color}
-                strokeWidth={14}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
-                transform={`rotate(-90 ${cx} ${cy})`}
-                className="cursor-pointer transition-all duration-250 hover:stroke-[16px]"
-                onMouseMove={(e) => handleMouseMove(e, seg.status, seg.count)}
-                onMouseLeave={handleMouseLeave}
-              />
+              <div key={status} className="flex items-center justify-between text-xs py-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
+                  <span className="text-ink-muted">{meta.label}</span>
+                </div>
+                <span className="font-semibold text-ink-onLight">{count}</span>
+              </div>
             );
           })}
-
-          {/* Central Total indicator */}
-          <g className="pointer-events-none">
-            <text
-              x={cx}
-              y={cy - 4}
-              textAnchor="middle"
-              className="text-[10px] font-bold text-ink-muted uppercase tracking-wider"
-              fill="currentColor"
-            >
-              Total
-            </text>
-            <text
-              x={cx}
-              y={cy + 12}
-              textAnchor="middle"
-              className="text-lg font-extrabold text-ink-onLight"
-              fill="currentColor"
-            >
-              {total}
-            </text>
-          </g>
-        </svg>
-
-        {/* Custom floating tooltip overlay */}
-        {activeTooltip && (
-          <div
-            className="absolute bg-white dark:bg-brand-dark-raised text-ink-onLight shadow-lg border border-gray-100 dark:border-brand-dark rounded px-3 py-1.5 text-xs font-semibold pointer-events-none z-10 transition-all duration-75"
-            style={{ left: activeTooltip.x + 12, top: activeTooltip.y - 12 }}
-          >
-            {STATUS_META[activeTooltip.status].label} : {activeTooltip.count}
-          </div>
-        )}
-      </div>
-
-      {/* 2-column Legend grid */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-xs mx-auto w-full pt-4 border-t border-gray-100 dark:border-brand-dark">
-        {statuses.map(status => {
-          const count = vehicleStatusBars[status] || 0;
-          const meta = STATUS_META[status];
-          return (
-            <div key={status} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-                <span className="text-ink-muted">{meta.label}</span>
-              </div>
-              <span className="font-semibold text-ink-onLight">{count}</span>
-            </div>
-          );
-        })}
+        </div>
       </div>
     </div>
   );
