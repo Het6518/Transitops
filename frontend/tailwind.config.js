@@ -1,19 +1,20 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
         brand: {
-          dark:        '#371367',
-          'dark-raised':'#45197D',
-          light:       '#EDE8F5',
+          dark:        'var(--bg-panel)',
+          'dark-raised':'var(--bg-panel-raised)',
+          light:       'var(--bg-main)',
         },
         ink: {
-          onDark:      '#F5F3FA',
-          onDarkMuted: '#B9A9D9',
-          onLight:     '#241246',
-          muted:       '#6B5E85',
+          onDark:      'var(--text-on-dark)',
+          onDarkMuted: 'var(--text-muted)',
+          onLight:     'var(--text-main)',
+          muted:       'var(--text-muted)',
         },
         accent: {
           DEFAULT: '#C17817',
