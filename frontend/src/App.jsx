@@ -16,6 +16,8 @@ import FuelExpensesPage  from './pages/FuelExpensesPage';
 import AnalyticsPage     from './pages/AnalyticsPage';
 import SettingsPage      from './pages/SettingsPage';
 import OrganizationPage  from './pages/OrganizationPage';
+import LandingPage       from './pages/LandingPage';
+import RegisterPage      from './pages/RegisterPage';
 
 export default function App() {
   return (
@@ -25,7 +27,9 @@ export default function App() {
           <ToastProvider>
             <Routes>
               {/* Public */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
               {/* Blocked-access page — no role guard wrapping it (a DRIVER landing here should see it) */}
               <Route path="/restricted" element={<RestrictedPage />} />
