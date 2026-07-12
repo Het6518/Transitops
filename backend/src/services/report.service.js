@@ -215,6 +215,10 @@ async function getMaintenanceSummary() {
         description: activeLog.description,
         startDate: activeLog.startDate,
       } : null,
+      // Frontend expected fields
+      totalRecords: logs.length,
+      totalCost: parseFloat(totalCost.toFixed(2)),
+      activeCount: logs.filter((log) => log.isActive).length,
     };
   });
 }

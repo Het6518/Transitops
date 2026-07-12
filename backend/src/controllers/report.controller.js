@@ -11,7 +11,38 @@ const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 /** GET /reports */
 const getReports = asyncHandler(async (req, res) => {
   const data = await svc.getVehicleReportData();
-  return res.status(200).json(data);
+
+  // Calculate aggregates
+  const totalDistance = data.reduce((sum, v) => sum + v.totalDistanceDriven, 0);
+  const totalFuel = data.reduce((sum, v) => sum + v.totalFuelConsumed, 0);
+  const fuelEfficiency = totalFuel > 0 ? parseFloat((totalDistance / totalFuel).toFixed(2)) : 0;
+
+  const totalOperationalCost = data.reduce((sum, v) => sum + v.operationalCost, 0);
+
+  const vehicleROI = data.length > 0 ? parseFloat((data.reduce((sum, v) => sum + v.vehicleROI, 0) / data.length).toFixed(2)) : 0;
+
+  const costliestVehicles = [...data]
+    .sort((a, b) => b.operationalCost - a.operationalCost)
+    .slice(0, 5)
+    .map(v => ({
+      vehicleId: v.vehicleId,
+      regNo: v.regNo,
+      totalCost: v.operationalCost
+    }));
+
+  // Fetch fleet utilization
+  const prisma = require('../prisma/client');
+  const totalVehicles = await prisma.vehicle.count({ where: { status: { not: 'RETIRED' } } });
+  const vehiclesOnTrip = await prisma.vehicle.count({ where: { status: 'ON_TRIP' } });
+  const fleetUtilization = totalVehicles > 0 ? parseFloat(((vehiclesOnTrip / totalVehicles) * 100).toFixed(2)) : 0;
+
+  return res.status(200).json({
+    fuelEfficiency,
+    fleetUtilization,
+    totalOperationalCost,
+    vehicleROI,
+    costliestVehicles
+  });
 });
 
 /** GET /reports/license-alerts */
