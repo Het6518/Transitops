@@ -18,8 +18,11 @@ function deriveMonthlyRevenue(trips) {
   return Object.entries(map).map(([month, revenue]) => ({ month, revenue }));
 }
 
-// Monthly Fuel Cost Trend Chart Component
+// Monthly Fuel Cost Trend Chart Component — Animated + Interactive
 function FuelTrendChart({ fuelLogs }) {
+  const [tooltip, setTooltip] = useState(null);
+  const [activeDot, setActiveDot] = useState(null);
+
   const monthlyMap = {};
   fuelLogs.forEach(log => {
     if (!log.date) return;
@@ -48,11 +51,10 @@ function FuelTrendChart({ fuelLogs }) {
 
   const width = 500;
   const height = 220;
-  const paddingLeft = 50;
+  const paddingLeft = 55;
   const paddingRight = 20;
   const paddingTop = 20;
   const paddingBottom = 30;
-
   const graphWidth = width - paddingLeft - paddingRight;
   const graphHeight = height - paddingTop - paddingBottom;
 
@@ -69,6 +71,7 @@ function FuelTrendChart({ fuelLogs }) {
     return { x, y, label: d.label, value: d.value };
   });
 
+  // Cubic bezier line path
   let lineD = '';
   if (points.length > 0) {
     lineD = `M ${points[0].x} ${points[0].y}`;
@@ -76,121 +79,105 @@ function FuelTrendChart({ fuelLogs }) {
       const p0 = points[i];
       const p1 = points[i + 1];
       const cpX1 = p0.x + (p1.x - p0.x) / 3;
-      const cpY1 = p0.y;
       const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
-      const cpY2 = p1.y;
-      lineD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+      lineD += ` C ${cpX1} ${p0.y}, ${cpX2} ${p1.y}, ${p1.x} ${p1.y}`;
     }
   }
 
+  // Area fill path (same curve, closed at bottom)
+  const areaD = lineD
+    + ` L ${points[points.length - 1].x} ${paddingTop + graphHeight}`
+    + ` L ${points[0].x} ${paddingTop + graphHeight} Z`;
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-      <h3 className="text-sm font-semibold text-ink-onLight mb-4">Monthly Fuel Cost Trend</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-ink-onLight">Monthly Fuel Cost Trend</h3>
+        {tooltip && (
+          <span className="text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+            {tooltip.label} — ₹{tooltip.value.toLocaleString()}
+          </span>
+        )}
+      </div>
       <div className="relative">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
-          {/* Horizontal Grid lines & Y Axis Labels */}
+
+          {/* Gradient defs */}
+          <defs>
+            <linearGradient id="fuelAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal Grid lines & Y Labels */}
           {gridSteps.map((step, idx) => {
             const y = paddingTop + graphHeight - (step / yCeil) * graphHeight;
             return (
               <g key={step}>
                 {idx > 0 && (
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={width - paddingRight}
-                    y2={y}
-                    stroke="var(--border-color)"
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
+                  <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y}
+                    stroke="var(--border-color)" strokeDasharray="3 3" strokeWidth={1} />
                 )}
-                <text
-                  x={paddingLeft - 8}
-                  y={y + 3}
-                  textAnchor="end"
-                  fill="currentColor"
-                  className="text-[10px] font-medium text-ink-muted"
-                >
-                  {Math.round(step)}
+                <text x={paddingLeft - 8} y={y + 3} textAnchor="end"
+                  fill="currentColor" className="text-[10px] font-medium text-ink-muted">
+                  {Math.round(step / 1000)}k
                 </text>
               </g>
             );
           })}
 
-          {/* Left Y Axis Line */}
-          <line
-            x1={paddingLeft}
-            y1={paddingTop}
-            x2={paddingLeft}
-            y2={paddingTop + graphHeight}
-            stroke="var(--border-color)"
-            strokeWidth={1}
-          />
+          {/* Axes */}
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={paddingTop + graphHeight}
+            stroke="var(--border-color)" strokeWidth={1} />
+          <line x1={paddingLeft} y1={paddingTop + graphHeight} x2={width - paddingRight} y2={paddingTop + graphHeight}
+            stroke="var(--border-color)" strokeWidth={1} />
 
-          {/* Bottom X Axis Line */}
-          <line
-            x1={paddingLeft}
-            y1={paddingTop + graphHeight}
-            x2={width - paddingRight}
-            y2={paddingTop + graphHeight}
-            stroke="var(--border-color)"
-            strokeWidth={1}
-          />
-
-          {/* Curved Line Path */}
+          {/* Area fill — fades in */}
           {lineD && (
-            <path
-              d={lineD}
-              fill="none"
-              stroke="#3B82F6"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d={areaD} fill="url(#fuelAreaGrad)" className="chart-area-in" />
           )}
 
-          {/* Data Points */}
+          {/* Animated line draw */}
+          {lineD && (
+            <path d={lineD} fill="none" stroke="#3B82F6" strokeWidth={2.5}
+              strokeLinecap="round" strokeLinejoin="round" className="chart-line-draw" />
+          )}
+
+          {/* X-axis labels */}
           {points.map((pt, idx) => (
-            <g key={idx} className="group cursor-pointer">
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={4}
-                fill="var(--bg-card)"
-                stroke="#3B82F6"
-                strokeWidth={2}
-              />
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={10}
-                fill="transparent"
-              />
-              <title>{`${pt.label}: ₹${pt.value.toLocaleString()}`}</title>
+            <g key={idx}>
+              <line x1={pt.x} y1={paddingTop + graphHeight} x2={pt.x} y2={paddingTop + graphHeight + 4}
+                stroke="var(--border-color)" strokeWidth={1} />
+              <text x={pt.x} y={height - 10} textAnchor="middle"
+                fill="currentColor" className="text-[10px] font-medium text-ink-muted">
+                {pt.label}
+              </text>
             </g>
           ))}
 
-          {/* X Axis Labels */}
+          {/* Interactive data points */}
           {points.map((pt, idx) => (
-            <g key={idx}>
-              {/* Tick */}
-              <line
-                x1={pt.x}
-                y1={paddingTop + graphHeight}
-                x2={pt.x}
-                y2={paddingTop + graphHeight + 4}
-                stroke="var(--border-color)"
-                strokeWidth={1}
+            <g
+              key={idx}
+              className="chart-dot-in cursor-pointer"
+              style={{ animationDelay: `${0.8 + idx * 0.08}s` }}
+              onMouseEnter={() => { setTooltip(pt); setActiveDot(idx); }}
+              onMouseLeave={() => { setTooltip(null); setActiveDot(null); }}
+            >
+              {/* Hover pulse ring */}
+              {activeDot === idx && (
+                <circle cx={pt.x} cy={pt.y} r={10} fill="#3B82F6" opacity={0.15} />
+              )}
+              {/* Outer ring */}
+              <circle cx={pt.x} cy={pt.y} r={activeDot === idx ? 6 : 4}
+                fill="var(--bg-card)" stroke="#3B82F6"
+                strokeWidth={activeDot === idx ? 2.5 : 2}
+                style={{ transition: 'r 0.15s ease, stroke-width 0.15s ease' }}
               />
-              <text
-                x={pt.x}
-                y={height - 10}
-                textAnchor="middle"
-                fill="currentColor"
-                className="text-[10px] font-medium text-ink-muted"
-              >
-                {pt.label}
-              </text>
+              {/* Inner filled dot */}
+              <circle cx={pt.x} cy={pt.y} r={activeDot === idx ? 3 : 2}
+                fill="#3B82F6" />
             </g>
           ))}
         </svg>
@@ -199,8 +186,11 @@ function FuelTrendChart({ fuelLogs }) {
   );
 }
 
-// Top Vehicles by Fuel Cost Chart Component
+
+// Top Vehicles by Fuel Cost Chart Component — Animated + Interactive
 function FuelVehiclesChart({ fuelLogs }) {
+  const [activeBar, setActiveBar] = useState(null);
+
   const vehicleMap = {};
   fuelLogs.forEach(log => {
     if (!log.vehicle?.regNo) return;
@@ -224,11 +214,10 @@ function FuelVehiclesChart({ fuelLogs }) {
 
   const width = 500;
   const height = 220;
-  const paddingLeft = 50;
+  const paddingLeft = 55;
   const paddingRight = 20;
   const paddingTop = 20;
   const paddingBottom = 30;
-
   const graphWidth = width - paddingLeft - paddingRight;
   const graphHeight = height - paddingTop - paddingBottom;
 
@@ -243,111 +232,98 @@ function FuelVehiclesChart({ fuelLogs }) {
   const barWidth = (graphWidth / barCount) * 0.6;
   const gap = (graphWidth / barCount) * 0.4;
 
-  const getBarPath = (x, y, w, h, r) => {
-    if (h <= r) return `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
-    return `
-      M ${x} ${y + r}
-      A ${r} ${r} 0 0 1 ${x + r} ${y}
-      L ${x + w - r} ${y}
-      A ${r} ${r} 0 0 1 ${x + w} ${y + r}
-      L ${x + w} ${y + h}
-      L ${x} ${y + h}
-      Z
-    `;
-  };
-
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-      <h3 className="text-sm font-semibold text-ink-onLight mb-4">Top Vehicles by Fuel Cost</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-ink-onLight">Top Vehicles by Fuel Cost</h3>
+        {activeBar !== null && (
+          <span className="text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+            {sortedVehicles[activeBar].label} — ₹{sortedVehicles[activeBar].value.toLocaleString()}
+          </span>
+        )}
+      </div>
       <div className="relative">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
-          {/* Horizontal Grid lines & Y Axis Labels */}
+
+          <defs>
+            <linearGradient id="barGradDefault" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366F1" stopOpacity="1" />
+              <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="barGradHover" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#818CF8" stopOpacity="1" />
+              <stop offset="100%" stopColor="#60A5FA" stopOpacity="1" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines + Y labels */}
           {gridSteps.map((step, idx) => {
             const y = paddingTop + graphHeight - (step / yCeil) * graphHeight;
             return (
               <g key={step}>
                 {idx > 0 && (
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={width - paddingRight}
-                    y2={y}
-                    stroke="var(--border-color)"
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
+                  <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y}
+                    stroke="var(--border-color)" strokeDasharray="3 3" strokeWidth={1} />
                 )}
-                <text
-                  x={paddingLeft - 8}
-                  y={y + 3}
-                  textAnchor="end"
-                  fill="currentColor"
-                  className="text-[10px] font-medium text-ink-muted"
-                >
+                <text x={paddingLeft - 8} y={y + 3} textAnchor="end"
+                  fill="currentColor" className="text-[10px] font-medium text-ink-muted">
                   {Math.round(step)}
                 </text>
               </g>
             );
           })}
 
-          {/* Left Y Axis Line */}
-          <line
-            x1={paddingLeft}
-            y1={paddingTop}
-            x2={paddingLeft}
-            y2={paddingTop + graphHeight}
-            stroke="var(--border-color)"
-            strokeWidth={1}
-          />
+          {/* Axes */}
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={paddingTop + graphHeight}
+            stroke="var(--border-color)" strokeWidth={1} />
+          <line x1={paddingLeft} y1={paddingTop + graphHeight} x2={width - paddingRight} y2={paddingTop + graphHeight}
+            stroke="var(--border-color)" strokeWidth={1} />
 
-          {/* Bottom X Axis Line */}
-          <line
-            x1={paddingLeft}
-            y1={paddingTop + graphHeight}
-            x2={width - paddingRight}
-            y2={paddingTop + graphHeight}
-            stroke="var(--border-color)"
-            strokeWidth={1}
-          />
-
-          {/* Bars with rounded top corners */}
+          {/* Animated bars */}
           {sortedVehicles.map((d, i) => {
             const x = paddingLeft + i * (barWidth + gap) + gap / 2;
-            const barHeight = (d.value / yCeil) * graphHeight;
+            const barHeight = Math.max((d.value / yCeil) * graphHeight, 2);
             const y = paddingTop + graphHeight - barHeight;
-            const pathD = getBarPath(x, y, barWidth, barHeight, 4);
+            const isActive = activeBar === i;
+            const r = 4;
+            // Rounded top corners path
+            const pathD = barHeight <= r
+              ? `M ${x} ${y} L ${x + barWidth} ${y} L ${x + barWidth} ${y + barHeight} L ${x} ${y + barHeight} Z`
+              : `M ${x} ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} L ${x + barWidth - r} ${y} A ${r} ${r} 0 0 1 ${x + barWidth} ${y + r} L ${x + barWidth} ${y + barHeight} L ${x} ${y + barHeight} Z`;
+
             return (
-              <g key={i} className="group cursor-pointer">
+              <g
+                key={i}
+                className="bar-grow cursor-pointer"
+                style={{ animationDelay: `${i * 0.08}s`, animationDuration: '0.55s' }}
+                onMouseEnter={() => setActiveBar(i)}
+                onMouseLeave={() => setActiveBar(null)}
+              >
                 <path
                   d={pathD}
-                  fill="#3B82F6"
-                  className="transition-colors duration-150 group-hover:fill-blue-500"
+                  fill={isActive ? 'url(#barGradHover)' : 'url(#barGradDefault)'}
+                  style={{ transition: 'fill 0.15s ease', filter: isActive ? 'drop-shadow(0 2px 6px rgba(99,102,241,0.4))' : 'none' }}
                 />
-                <title>{`${d.label}: ₹${d.value.toLocaleString()}`}</title>
+                {/* Value label above bar on hover */}
+                {isActive && (
+                  <text x={x + barWidth / 2} y={y - 5} textAnchor="middle"
+                    fill="#6366F1" className="text-[9px] font-bold">
+                    ₹{(d.value / 1000).toFixed(1)}k
+                  </text>
+                )}
               </g>
             );
           })}
 
-          {/* X Axis Labels */}
+          {/* X-axis labels */}
           {sortedVehicles.map((d, i) => {
             const x = paddingLeft + i * (barWidth + gap) + gap / 2 + barWidth / 2;
             return (
               <g key={i}>
-                <line
-                  x1={x}
-                  y1={paddingTop + graphHeight}
-                  x2={x}
-                  y2={paddingTop + graphHeight + 4}
-                  stroke="var(--border-color)"
-                  strokeWidth={1}
-                />
-                <text
-                  x={x}
-                  y={height - 10}
-                  textAnchor="middle"
-                  fill="currentColor"
-                  className="text-[9px] font-semibold text-ink-muted"
-                >
+                <line x1={x} y1={paddingTop + graphHeight} x2={x} y2={paddingTop + graphHeight + 4}
+                  stroke="var(--border-color)" strokeWidth={1} />
+                <text x={x} y={height - 10} textAnchor="middle"
+                  fill="currentColor" className="text-[9px] font-semibold text-ink-muted">
                   {d.label}
                 </text>
               </g>
@@ -358,6 +334,7 @@ function FuelVehiclesChart({ fuelLogs }) {
     </div>
   );
 }
+
 
 export default function AnalyticsPage() {
   const toast = useToast();

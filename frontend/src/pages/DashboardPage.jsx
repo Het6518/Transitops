@@ -14,11 +14,17 @@ const STATUS_META = {
 
 function FleetAllocationDonut({ vehicleStatusBars }) {
   const [activeTooltip, setActiveTooltip] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Trigger animation after initial render
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   const statuses = ['AVAILABLE', 'ON_TRIP', 'IN_SHOP', 'RETIRED'];
   const total = statuses.reduce((sum, status) => sum + (vehicleStatusBars[status] || 0), 0);
 
-  // If no vehicles, show a placeholder empty state
   if (total === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex flex-col justify-center items-center text-ink-muted text-sm h-full">
@@ -29,20 +35,13 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
     );
   }
 
-  // Calculate cumulative percentages for Donut slices
   const segments = [];
   let accumulatedPercent = 0;
-
   statuses.forEach(status => {
     const count = vehicleStatusBars[status] || 0;
     if (count > 0) {
       const percent = count / total;
-      segments.push({
-        status,
-        count,
-        percent,
-        accumulatedPercent
-      });
+      segments.push({ status, count, percent, accumulatedPercent });
       accumulatedPercent += percent;
     }
   });
@@ -50,17 +49,13 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
   const radius = 50;
   const cx = 80;
   const cy = 80;
-  const circumference = 2 * Math.PI * radius; // 314.159
+  const circumference = 2 * Math.PI * radius;
 
   const handleMouseMove = (e, status, count) => {
     const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     setActiveTooltip({ status, count, x, y });
-  };
-
-  const handleMouseLeave = () => {
-    setActiveTooltip(null);
   };
 
   return (
@@ -73,23 +68,25 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
       <div className="flex flex-col sm:flex-row items-center justify-center gap-8 my-auto p-2">
         {/* SVG Circle Section */}
         <div className="relative flex justify-center items-center shrink-0">
-          <svg viewBox="0 0 160 160" className="w-48 h-48 overflow-visible">
-            {/* Base/Background circle ring */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill="transparent"
-              stroke="var(--border-color)"
-              strokeWidth={14}
-            />
-            
-            {/* Segments */}
+          <svg
+            viewBox="0 0 160 160"
+            className="w-48 h-48 overflow-visible"
+            style={{
+              transform: mounted ? 'rotate(0deg) scale(1)' : 'rotate(-30deg) scale(0.85)',
+              opacity: mounted ? 1 : 0,
+              transition: 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
+            }}
+          >
+            {/* Background ring */}
+            <circle cx={cx} cy={cy} r={radius} fill="transparent"
+              stroke="var(--border-color)" strokeWidth={14} />
+
+            {/* Animated segments */}
             {segments.map((seg, idx) => {
               const strokeLength = seg.percent * circumference;
-              const displayStrokeLength = segments.length > 1 ? strokeLength - 2 : strokeLength;
-              const strokeDasharray = `${Math.max(0.1, displayStrokeLength)} ${circumference}`;
-              const strokeDashoffset = -seg.accumulatedPercent * circumference;
+              const displayStroke = segments.length > 1 ? strokeLength - 2 : strokeLength;
+              const targetDasharray = `${Math.max(0.1, displayStroke)} ${circumference}`;
+              const targetDashoffset = -seg.accumulatedPercent * circumference;
 
               return (
                 <circle
@@ -99,41 +96,33 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
                   r={radius}
                   fill="transparent"
                   stroke={STATUS_META[seg.status].color}
-                  strokeWidth={14}
-                  strokeDasharray={strokeDasharray}
-                  strokeDashoffset={strokeDashoffset}
+                  strokeWidth={activeTooltip?.status === seg.status ? 17 : 14}
+                  strokeDasharray={mounted ? targetDasharray : `0 ${circumference}`}
+                  strokeDashoffset={targetDashoffset}
                   transform={`rotate(-90 ${cx} ${cy})`}
-                  className="cursor-pointer transition-all duration-250 hover:stroke-[16px]"
+                  className="cursor-pointer"
+                  style={{
+                    transition: `stroke-dasharray 0.7s cubic-bezier(0.4,0,0.2,1) ${idx * 0.12}s, stroke-width 0.2s ease`,
+                  }}
                   onMouseMove={(e) => handleMouseMove(e, seg.status, seg.count)}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseLeave={() => setActiveTooltip(null)}
                 />
               );
             })}
 
-            {/* Central Total indicator */}
-            <g className="pointer-events-none">
-              <text
-                x={cx}
-                y={cy - 4}
-                textAnchor="middle"
+            {/* Central Total */}
+            <g className="pointer-events-none"
+              style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.4s ease 0.6s' }}>
+              <text x={cx} y={cy - 4} textAnchor="middle"
                 className="text-[10px] font-bold text-ink-muted uppercase tracking-wider"
-                fill="currentColor"
-              >
-                Total
-              </text>
-              <text
-                x={cx}
-                y={cy + 12}
-                textAnchor="middle"
+                fill="currentColor">Total</text>
+              <text x={cx} y={cy + 12} textAnchor="middle"
                 className="text-lg font-extrabold text-ink-onLight"
-                fill="currentColor"
-              >
-                {total}
-              </text>
+                fill="currentColor">{total}</text>
             </g>
           </svg>
 
-          {/* Custom floating tooltip overlay */}
+          {/* Floating tooltip */}
           {activeTooltip && (
             <div
               className="absolute bg-white dark:bg-brand-dark-raised text-ink-onLight shadow-lg border border-gray-100 dark:border-brand-dark rounded px-3 py-1.5 text-xs font-semibold pointer-events-none z-10 transition-all duration-75"
@@ -144,13 +133,21 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
           )}
         </div>
 
-        {/* Vertical Legend on the right */}
+        {/* Vertical Legend on right */}
         <div className="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[150px] border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-brand-dark pt-4 sm:pt-0 sm:pl-6">
-          {statuses.map(status => {
+          {statuses.map((status, idx) => {
             const count = vehicleStatusBars[status] || 0;
             const meta = STATUS_META[status];
             return (
-              <div key={status} className="flex items-center justify-between text-xs py-1">
+              <div
+                key={status}
+                className="flex items-center justify-between text-xs py-1"
+                style={{
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateX(0)' : 'translateX(12px)',
+                  transition: `opacity 0.35s ease ${0.4 + idx * 0.08}s, transform 0.35s ease ${0.4 + idx * 0.08}s`,
+                }}
+              >
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
                   <span className="text-ink-muted">{meta.label}</span>
@@ -164,6 +161,7 @@ function FleetAllocationDonut({ vehicleStatusBars }) {
     </div>
   );
 }
+
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
