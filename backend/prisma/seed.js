@@ -356,6 +356,113 @@ async function main() {
     });
   }
 
+  // ─── 10. Seed Organizations, Jobs & Members ───────────────────────────────
+  console.log('🏢 Seeding Organizations, Jobs & Members...');
+  const orgCount = await prisma.organization.count();
+  if (orgCount === 0) {
+    const org = await prisma.organization.create({
+      data: {
+        name: "TransitOps Global",
+        email: "info@transitops.com",
+        phone: "+1 (555) 019-2834",
+        website: "https://transitops.com",
+        address: "100 Shipping Way, Suite 400, Logistics City",
+        orgType: "Enterprise Logistics",
+        foundedYear: 2018,
+        teamSize: "100-500 employees",
+        domainsOfWork: ["Supply Chain", "Fleet Routing", "Quality Assurance", "Operations"],
+        subscriptionPlan: "Enterprise",
+      }
+    });
+
+    await prisma.job.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          title: "Lead QA Engineer",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Remote",
+          location: "No specific location requirement",
+          domain: "Quality Assurance",
+          visibility: "Public",
+          appliedCount: 28,
+          shortlistedCount: 6,
+          offersCount: 2,
+          createdAt: new Date('2026-07-01T09:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          title: "Operations Coordinator",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Onsite",
+          location: "Chicago, USA",
+          domain: "Operations",
+          visibility: "Public",
+          appliedCount: 14,
+          shortlistedCount: 3,
+          offersCount: 1,
+          createdAt: new Date('2026-07-02T10:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          title: "Fleet Dispatch Manager",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Hybrid",
+          location: "Chicago, USA",
+          domain: "Operations",
+          visibility: "Private",
+          appliedCount: 8,
+          shortlistedCount: 2,
+          offersCount: 0,
+          createdAt: new Date('2026-07-03T11:00:00Z')
+        }
+      ]
+    });
+
+    await prisma.member.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          name: "Jenil Patel",
+          email: "jenil@test.com",
+          role: "Admin",
+          status: "Active",
+          joinedAt: new Date('2026-07-01T09:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Priya Sharma",
+          email: "priya@test.com",
+          role: "Manager",
+          status: "Active",
+          joinedAt: new Date('2026-07-02T10:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Nirbhay Singh",
+          email: "nirbhay@test.com",
+          role: "Member",
+          status: "Active",
+          joinedAt: new Date('2026-07-03T11:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Rohan Das",
+          email: "rohan@test.com",
+          role: "Member",
+          status: "Pending",
+          joinedAt: new Date('2026-07-04T12:00:00Z')
+        }
+      ]
+    });
+  }
+
   console.log('✅ Seed complete.');
 }
 

@@ -42,6 +42,7 @@ export const PAGE_ACCESS = {
   fuelExpenses: { FLEET_MANAGER: 'full',   DRIVER: 'full', SAFETY_OFFICER: 'none',  FINANCIAL_ANALYST: 'view'  },
   analytics:    { FLEET_MANAGER: 'full',   DRIVER: 'none', SAFETY_OFFICER: 'full',  FINANCIAL_ANALYST: 'full'  },
   settings:     { FLEET_MANAGER: 'full',   DRIVER: 'none', SAFETY_OFFICER: 'none',  FINANCIAL_ANALYST: 'none'  },
+  organization: { FLEET_MANAGER: 'full',   DRIVER: 'none', SAFETY_OFFICER: 'full',  FINANCIAL_ANALYST: 'full'  },
 };
 
 // ─── Write-button gating inside pages ────────────────────────────────────────
@@ -90,6 +91,7 @@ export const NAV_ITEMS = [
   { page: 'maintenance',  label: 'Maintenance',       path: '/maintenance',  icon: 'tool' },
   { page: 'fuelExpenses', label: 'Fuel & Expenses',   path: '/fuel-expenses',icon: 'droplet' },
   { page: 'analytics',    label: 'Analytics',         path: '/analytics',    icon: 'bar-chart' },
+  { page: 'organization', label: 'Organization',      path: '/organization', icon: 'users' },
   { page: 'settings',     label: 'Settings',          path: '/settings',     icon: 'settings' },
 ];
 

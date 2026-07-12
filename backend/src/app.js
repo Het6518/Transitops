@@ -50,6 +50,7 @@ app.use('/fuel-logs',   require('./routes/fuelLog.routes'));
 app.use('/expenses',    require('./routes/expense.routes'));
 app.use('/dashboard',   require('./routes/dashboard.routes'));
 app.use('/reports',     require('./routes/report.routes'));
+app.use('/organizations', require('./routes/organization.routes'));
 
 // ─── Centralized Error Handler ────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
