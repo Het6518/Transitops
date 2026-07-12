@@ -118,6 +118,8 @@ const ROLE_PERMISSIONS = {
     'report:read', 'report:create',
   ],
   DRIVER: [
+    'vehicle:read',                                               // needed to list available vehicles for trip creation
+    'driver:read',                                                // needed to list available drivers for trip creation
     'trip:create', 'trip:read', 'trip:update', 'trip:delete',
     'trip:dispatch', 'trip:complete', 'trip:cancel',
     'fuelLog:create', 'fuelLog:read', 'fuelLog:update', 'fuelLog:delete',

@@ -35,11 +35,11 @@ User ──has──► Role ──has many──► RolePermission ──refere
 | Resource    | Action   | Fleet Manager | Driver | Safety Officer | Financial Analyst |
 |-------------|----------|:---:|:---:|:---:|:---:|
 | vehicle     | create   | ✅ | ❌ | ❌ | ❌ |
-| vehicle     | read     | ✅ | ❌ | ✅ | ✅ |
+| vehicle     | read     | ✅ | ✅ | ✅ | ✅ |
 | vehicle     | update   | ✅ | ❌ | ❌ | ❌ |
 | vehicle     | delete   | ✅ | ❌ | ❌ | ❌ |
 | driver      | create   | ✅ | ❌ | ✅ | ❌ |
-| driver      | read     | ✅ | ❌ | ✅ | ✅ |
+| driver      | read     | ✅ | ✅ | ✅ | ✅ |
 | driver      | update   | ✅ | ❌ | ✅ | ❌ |
 | driver      | delete   | ✅ | ❌ | ✅ | ❌ |
 | trip        | create   | ❌ | ✅ | ❌ | ❌ |

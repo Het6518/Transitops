@@ -9,7 +9,18 @@ const { requirePermission }   = require('./middleware/requirePermission');
 const app = express();
 
 // ─── Global Middleware ────────────────────────────────────────────────────────
-app.use(cors());
+// ─── CORS ───────────────────────────────────────────────────────────────────
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow server-to-server calls (no origin) and listed origins
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
