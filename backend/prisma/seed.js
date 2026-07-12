@@ -191,6 +191,167 @@ async function main() {
     }
   }
   console.log(`  RolePermissions upserted: ${grantCount}`);
+
+  // ─── 4. Seed Users ──────────────────────────────────────────────────────────
+  console.log('👤 Seeding Users...');
+  const bcrypt = require('bcrypt');
+  const passwordHash = await bcrypt.hash('password123', 10);
+  const usersToSeed = [
+    { email: 'manager@test.com', roleName: 'FLEET_MANAGER' },
+    { email: 'driver@test.com', roleName: 'DRIVER' },
+    { email: 'safety@test.com', roleName: 'SAFETY_OFFICER' },
+    { email: 'finance@test.com', roleName: 'FINANCIAL_ANALYST' }
+  ];
+  for (const u of usersToSeed) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        passwordHash,
+        roleId: roleMap[u.roleName]
+      }
+    });
+  }
+
+  // ─── 5. Seed Vehicles ───────────────────────────────────────────────────────
+  console.log('🚗 Seeding Vehicles...');
+  const vehicles = [
+    { regNo: 'MH12AB1001', name: 'Fleet Truck 1', type: 'truck', maxLoadKg: 10000, odometer: 15000, acquisitionCost: 120000, status: 'AVAILABLE' },
+    { regNo: 'MH12AB1002', name: 'Fleet Van 2', type: 'van', maxLoadKg: 2000, odometer: 8000, acquisitionCost: 45000, status: 'AVAILABLE' },
+    { regNo: 'MH12AB1003', name: 'Fleet Truck 3 (Active)', type: 'truck', maxLoadKg: 12000, odometer: 25000, acquisitionCost: 140000, status: 'ON_TRIP' },
+    { regNo: 'MH12AB1004', name: 'Fleet Van 4 (Shop)', type: 'van', maxLoadKg: 2500, odometer: 12000, acquisitionCost: 50000, status: 'IN_SHOP' },
+    { regNo: 'MH12AB1005', name: 'Decommissioned Truck 5', type: 'truck', maxLoadKg: 8000, odometer: 350000, acquisitionCost: 95000, status: 'RETIRED' }
+  ];
+  const vehicleMap = {};
+  for (const v of vehicles) {
+    const veh = await prisma.vehicle.upsert({
+      where: { regNo: v.regNo },
+      update: { status: v.status },
+      create: v
+    });
+    vehicleMap[v.regNo] = veh.id;
+  }
+
+  // ─── 6. Seed Drivers ────────────────────────────────────────────────────────
+  console.log('👨 Seeding Drivers...');
+  const drivers = [
+    { name: 'John Driver', licenseNo: 'LIC-000001', licenseCategory: 'HMV', licenseExpiry: new Date('2028-12-31T00:00:00Z'), contact: '+919876543210', safetyScore: 95, status: 'AVAILABLE' },
+    { name: 'David Active', licenseNo: 'LIC-000002', licenseCategory: 'HMV', licenseExpiry: new Date('2029-06-15T00:00:00Z'), contact: '+919876543211', safetyScore: 88, status: 'ON_TRIP' },
+    { name: 'Sarah Break', licenseNo: 'LIC-000003', licenseCategory: 'LMV', licenseExpiry: new Date('2027-04-20T00:00:00Z'), contact: '+919876543212', safetyScore: 92, status: 'OFF_DUTY' },
+    { name: 'Mike Suspended', licenseNo: 'LIC-000004', licenseCategory: 'HMV', licenseExpiry: new Date('2028-01-01T00:00:00Z'), contact: '+919876543213', safetyScore: 45, status: 'SUSPENDED' },
+    { name: 'Robert Expired', licenseNo: 'LIC-000005', licenseCategory: 'LMV', licenseExpiry: new Date('2025-01-01T00:00:00Z'), contact: '+919876543214', safetyScore: 75, status: 'AVAILABLE' }
+  ];
+  const driverMap = {};
+  for (const d of drivers) {
+    const drv = await prisma.driver.upsert({
+      where: { licenseNo: d.licenseNo },
+      update: { status: d.status, licenseExpiry: d.licenseExpiry },
+      create: d
+    });
+    driverMap[d.licenseNo] = drv.id;
+  }
+
+  // ─── 7. Seed Trips ──────────────────────────────────────────────────────────
+  console.log('📦 Seeding Trips...');
+  const tripCount = await prisma.trip.count();
+  if (tripCount === 0) {
+    await prisma.trip.createMany({
+      data: [
+        {
+          source: 'Warehouse North',
+          destination: 'Outlet East',
+          vehicleId: vehicleMap['MH12AB1001'],
+          driverId: driverMap['LIC-000001'],
+          cargoWeightKg: 5000,
+          plannedDistance: 120,
+          actualOdometer: 15120,
+          fuelConsumed: 22,
+          status: 'COMPLETED',
+          createdAt: new Date('2026-07-01T08:00:00Z'),
+          dispatchedAt: new Date('2026-07-01T09:00:00Z'),
+          completedAt: new Date('2026-07-01T12:00:00Z')
+        },
+        {
+          source: 'Warehouse South',
+          destination: 'Outlet West',
+          vehicleId: vehicleMap['MH12AB1002'],
+          driverId: driverMap['LIC-000003'],
+          cargoWeightKg: 1500,
+          plannedDistance: 80,
+          actualOdometer: 8080,
+          fuelConsumed: 12,
+          status: 'COMPLETED',
+          createdAt: new Date('2026-07-02T10:00:00Z'),
+          dispatchedAt: new Date('2026-07-02T10:30:00Z'),
+          completedAt: new Date('2026-07-02T12:30:00Z')
+        },
+        {
+          source: 'Warehouse East',
+          destination: 'Outlet Central',
+          vehicleId: vehicleMap['MH12AB1001'],
+          driverId: driverMap['LIC-000001'],
+          cargoWeightKg: 4000,
+          plannedDistance: 90,
+          actualOdometer: 15210,
+          fuelConsumed: 18,
+          status: 'COMPLETED',
+          createdAt: new Date('2026-07-03T14:00:00Z'),
+          dispatchedAt: new Date('2026-07-03T14:30:00Z'),
+          completedAt: new Date('2026-07-03T16:30:00Z')
+        },
+        {
+          source: 'Warehouse Central',
+          destination: 'Outlet North',
+          vehicleId: vehicleMap['MH12AB1003'],
+          driverId: driverMap['LIC-000002'],
+          cargoWeightKg: 8000,
+          plannedDistance: 200,
+          status: 'DISPATCHED',
+          createdAt: new Date('2026-07-12T08:00:00Z'),
+          dispatchedAt: new Date('2026-07-12T08:30:00Z')
+        }
+      ]
+    });
+  }
+
+  // ─── 8. Seed Maintenance Logs ───────────────────────────────────────────────
+  console.log('🔧 Seeding Maintenance...');
+  const maintenanceCount = await prisma.maintenanceLog.count();
+  if (maintenanceCount === 0) {
+    await prisma.maintenanceLog.create({
+      data: {
+        vehicleId: vehicleMap['MH12AB1004'],
+        description: 'Engine transmission check and gear tuning',
+        cost: 450.00,
+        startDate: new Date('2026-07-11T09:00:00Z'),
+        isActive: true
+      }
+    });
+  }
+
+  // ─── 9. Seed Fuel & Expenses ────────────────────────────────────────────────
+  console.log('⛽ Seeding Fuel Logs & Expenses...');
+  const fuelCount = await prisma.fuelLog.count();
+  if (fuelCount === 0) {
+    await prisma.fuelLog.createMany({
+      data: [
+        { vehicleId: vehicleMap['MH12AB1001'], liters: 45, cost: 90, date: new Date('2026-07-01T08:30:00Z') },
+        { vehicleId: vehicleMap['MH12AB1002'], liters: 15, cost: 32, date: new Date('2026-07-02T10:15:00Z') }
+      ]
+    });
+  }
+
+  const expenseCount = await prisma.expense.count();
+  if (expenseCount === 0) {
+    await prisma.expense.createMany({
+      data: [
+        { vehicleId: vehicleMap['MH12AB1001'], type: 'toll', amount: 20, date: new Date('2026-07-01T10:00:00Z') },
+        { vehicleId: vehicleMap['MH12AB1002'], type: 'misc', amount: 15, date: new Date('2026-07-02T11:00:00Z') }
+      ]
+    });
+  }
+
   console.log('✅ Seed complete.');
 }
 

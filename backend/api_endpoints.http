@@ -1,0 +1,290 @@
+# TransitOps API Request Collection (REST Client / HTTP File format)
+# Use with VS Code REST Client extension to execute requests.
+
+@baseUrl = http://localhost:3000
+
+### ─── 1. Authentication ────────────────────────────────────────────────────────
+
+# @name signupManager
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "manager_demo@test.com",
+  "password": "password123",
+  "roleName": "FLEET_MANAGER"
+}
+
+###
+
+# @name loginManager
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "manager_demo@test.com",
+  "password": "password123"
+}
+
+### Save Manager Token from response
+@managerToken = {{loginManager.response.body.token}}
+
+
+###
+
+# @name signupDriver
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "driver_demo@test.com",
+  "password": "password123",
+  "roleName": "DRIVER"
+}
+
+###
+
+# @name loginDriver
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "driver_demo@test.com",
+  "password": "password123"
+}
+
+### Save Driver Token from response
+@driverToken = {{loginDriver.response.body.token}}
+
+
+### ─── 2. Vehicle CRUD ─────────────────────────────────────────────────────────
+
+# @name createVehicle
+POST {{baseUrl}}/vehicles
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "regNo": "MH12XY9999",
+  "name": "Heavy Duty Dump Truck",
+  "type": "truck",
+  "maxLoadKg": 15000,
+  "odometer": 5000,
+  "acquisitionCost": 180000
+}
+
+### Save Vehicle ID
+@vehicleId = {{createVehicle.response.body.id}}
+
+###
+
+GET {{baseUrl}}/vehicles
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/vehicles/{{vehicleId}}
+Authorization: Bearer {{managerToken}}
+
+###
+
+PATCH {{baseUrl}}/vehicles/{{vehicleId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "name": "Heavy Duty Dump Truck Updated",
+  "maxLoadKg": 16000
+}
+
+### ─── 3. Driver CRUD ──────────────────────────────────────────────────────────
+
+# @name createDriver
+POST {{baseUrl}}/drivers
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "name": "Jane Doe",
+  "licenseNo": "LIC-ABC-123",
+  "licenseCategory": "HMV",
+  "licenseExpiry": "2029-12-31",
+  "contact": "+919876543210",
+  "safetyScore": 92
+}
+
+### Save Driver ID
+@driverId = {{createDriver.response.body.id}}
+
+###
+
+GET {{baseUrl}}/drivers
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{managerToken}}
+
+###
+
+PATCH {{baseUrl}}/drivers/{{driverId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "contact": "+919999999999",
+  "safetyScore": 95
+}
+
+### ─── 4. Trip Management ──────────────────────────────────────────────────────
+
+# @name createTrip
+POST {{baseUrl}}/trips
+Content-Type: application/json
+Authorization: Bearer {{driverToken}}
+
+{
+  "source": "Warehouse A",
+  "destination": "Outlet B",
+  "vehicleId": "{{vehicleId}}",
+  "driverId": "{{driverId}}",
+  "cargoWeightKg": 12000,
+  "plannedDistance": 350
+}
+
+### Save Trip ID
+@tripId = {{createTrip.response.body.id}}
+
+###
+
+GET {{baseUrl}}/trips
+Authorization: Bearer {{managerToken}}
+
+###
+
+PATCH {{baseUrl}}/trips/{{tripId}}
+Content-Type: application/json
+Authorization: Bearer {{driverToken}}
+
+{
+  "source": "Warehouse A (Updated)",
+  "cargoWeightKg": 11000
+}
+
+###
+
+# @name dispatchTrip
+POST {{baseUrl}}/trips/{{tripId}}/dispatch
+Authorization: Bearer {{driverToken}}
+
+###
+
+# @name completeTrip
+POST {{baseUrl}}/trips/{{tripId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{driverToken}}
+
+{
+  "actualOdometer": 5350,
+  "fuelConsumed: ": 75
+}
+
+### ─── 5. Maintenance Workflow ────────────────────────────────────────────────
+
+# @name openMaintenance
+POST {{baseUrl}}/maintenance
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "vehicleId": "{{vehicleId}}",
+  "description": "Scheduled transmission overhaul",
+  "cost": 1200.00
+}
+
+### Save Maintenance Log ID
+@maintenanceId = {{openMaintenance.response.body.id}}
+
+###
+
+GET {{baseUrl}}/maintenance?vehicleId={{vehicleId}}
+Authorization: Bearer {{managerToken}}
+
+###
+
+# @name closeMaintenance
+PATCH {{baseUrl}}/maintenance/{{maintenanceId}}/close
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "cost": 1250.00,
+  "description": "Scheduled transmission overhaul and clutch kit replacement"
+}
+
+### ─── 6. Fuel Logs & Expenses ────────────────────────────────────────────────
+
+POST {{baseUrl}}/fuel-logs
+Content-Type: application/json
+Authorization: Bearer {{driverToken}}
+
+{
+  "vehicleId": "{{vehicleId}}",
+  "liters": 80,
+  "cost": 170.00
+}
+
+###
+
+GET {{baseUrl}}/fuel-logs?vehicleId={{vehicleId}}
+Authorization: Bearer {{driverToken}}
+
+###
+
+POST {{baseUrl}}/expenses
+Content-Type: application/json
+Authorization: Bearer {{driverToken}}
+
+{
+  "vehicleId": "{{vehicleId}}",
+  "type": "toll",
+  "amount": 25.00
+}
+
+###
+
+GET {{baseUrl}}/expenses?vehicleId={{vehicleId}}
+Authorization: Bearer {{driverToken}}
+
+### ─── 7. Dashboard & Reports ─────────────────────────────────────────────────
+
+GET {{baseUrl}}/dashboard
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/dashboard?vehicleType=truck
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/reports
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/reports/license-alerts?withinDays=30
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/reports/maintenance-summary
+Authorization: Bearer {{managerToken}}
+
+###
+
+GET {{baseUrl}}/reports/export.csv
+Authorization: Bearer {{managerToken}}
+
+###
