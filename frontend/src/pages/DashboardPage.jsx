@@ -5,6 +5,164 @@ import StatusBadge from '../components/StatusBadge';
 import { Spinner, ErrorState } from '../components/States';
 import client from '../api/client';
 
+const STATUS_META = {
+  AVAILABLE: { label: 'Available', color: '#2F9E44', textClass: 'text-[#2F9E44]' },
+  ON_TRIP:   { label: 'On Trip',   color: '#3B82F6', textClass: 'text-[#3B82F6]' },
+  IN_SHOP:   { label: 'In Shop',   color: '#D97706', textClass: 'text-[#D97706]' },
+  RETIRED:   { label: 'Retired',   color: '#E5484D', textClass: 'text-[#E5484D]' },
+};
+
+function FleetAllocationDonut({ vehicleStatusBars }) {
+  const [activeTooltip, setActiveTooltip] = useState(null);
+
+  const statuses = ['AVAILABLE', 'ON_TRIP', 'IN_SHOP', 'RETIRED'];
+  const total = statuses.reduce((sum, status) => sum + (vehicleStatusBars[status] || 0), 0);
+
+  // If no vehicles, show a placeholder empty state
+  if (total === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex flex-col justify-center items-center text-ink-muted text-sm h-full">
+        <h2 className="text-sm font-semibold text-ink-onLight mb-2 self-start">Fleet Allocation</h2>
+        <p className="text-xs text-ink-muted mb-4 self-start">Current vehicle allocation and operational status</p>
+        <p className="text-ink-muted mt-8">No vehicles registered</p>
+      </div>
+    );
+  }
+
+  // Calculate cumulative percentages for Donut slices
+  const segments = [];
+  let accumulatedPercent = 0;
+
+  statuses.forEach(status => {
+    const count = vehicleStatusBars[status] || 0;
+    if (count > 0) {
+      const percent = count / total;
+      segments.push({
+        status,
+        count,
+        percent,
+        accumulatedPercent
+      });
+      accumulatedPercent += percent;
+    }
+  });
+
+  const radius = 50;
+  const cx = 80;
+  const cy = 80;
+  const circumference = 2 * Math.PI * radius; // 314.159
+
+  const handleMouseMove = (e, status, count) => {
+    const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setActiveTooltip({ status, count, x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setActiveTooltip(null);
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex flex-col justify-between relative h-full">
+      <div>
+        <h2 className="text-sm font-semibold text-ink-onLight">Fleet Allocation</h2>
+        <p className="text-xs text-ink-muted mb-4">Current vehicle allocation and operational status</p>
+      </div>
+
+      <div className="relative flex justify-center items-center my-4">
+        <svg viewBox="0 0 160 160" className="w-40 h-40 overflow-visible">
+          {/* Base/Background circle ring */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={radius}
+            fill="transparent"
+            stroke="var(--border-color)"
+            strokeWidth={14}
+          />
+          
+          {/* Segments */}
+          {segments.map((seg, idx) => {
+            const strokeLength = seg.percent * circumference;
+            // Subtract small gap between segments if there are multiple segments
+            const displayStrokeLength = segments.length > 1 ? strokeLength - 2 : strokeLength;
+            const strokeDasharray = `${Math.max(0.1, displayStrokeLength)} ${circumference}`;
+            const strokeDashoffset = -seg.accumulatedPercent * circumference;
+
+            return (
+              <circle
+                key={seg.status}
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill="transparent"
+                stroke={STATUS_META[seg.status].color}
+                strokeWidth={14}
+                strokeDasharray={strokeDasharray}
+                strokeDashoffset={strokeDashoffset}
+                transform={`rotate(-90 ${cx} ${cy})`}
+                className="cursor-pointer transition-all duration-250 hover:stroke-[16px]"
+                onMouseMove={(e) => handleMouseMove(e, seg.status, seg.count)}
+                onMouseLeave={handleMouseLeave}
+              />
+            );
+          })}
+
+          {/* Central Total indicator */}
+          <g className="pointer-events-none">
+            <text
+              x={cx}
+              y={cy - 4}
+              textAnchor="middle"
+              className="text-[10px] font-bold text-ink-muted uppercase tracking-wider"
+              fill="currentColor"
+            >
+              Total
+            </text>
+            <text
+              x={cx}
+              y={cy + 12}
+              textAnchor="middle"
+              className="text-lg font-extrabold text-ink-onLight"
+              fill="currentColor"
+            >
+              {total}
+            </text>
+          </g>
+        </svg>
+
+        {/* Custom floating tooltip overlay */}
+        {activeTooltip && (
+          <div
+            className="absolute bg-white dark:bg-brand-dark-raised text-ink-onLight shadow-lg border border-gray-100 dark:border-brand-dark rounded px-3 py-1.5 text-xs font-semibold pointer-events-none z-10 transition-all duration-75"
+            style={{ left: activeTooltip.x + 12, top: activeTooltip.y - 12 }}
+          >
+            {STATUS_META[activeTooltip.status].label} : {activeTooltip.count}
+          </div>
+        )}
+      </div>
+
+      {/* 2-column Legend grid */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-xs mx-auto w-full pt-4 border-t border-gray-100 dark:border-brand-dark">
+        {statuses.map(status => {
+          const count = vehicleStatusBars[status] || 0;
+          const meta = STATUS_META[status];
+          return (
+            <div key={status} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
+                <span className="text-ink-muted">{meta.label}</span>
+              </div>
+              <span className="font-semibold text-ink-onLight">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -90,25 +248,34 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Vehicle Status breakdown */}
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-8">
-            <h2 className="text-sm font-semibold text-ink-onLight mb-4">Vehicle Status Breakdown</h2>
-            <div className="space-y-4">
-              {Object.entries(vehicleStatusBars).map(([status, count]) => (
-                <div key={status} className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-                  <div className="flex justify-between md:contents">
-                    <span className="text-xs text-ink-muted w-24 shrink-0 uppercase tracking-wider">{status.replace('_', ' ')}</span>
-                    <span className="text-xs font-semibold text-ink-onLight w-6 text-right md:order-last">{count}</span>
+          {/* Status Breakdown & Fleet Allocation Donut */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Vehicle Status breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-ink-onLight">Vehicle Status Breakdown</h2>
+                <p className="text-xs text-ink-muted mb-4">Detailed status breakdown of current vehicles</p>
+              </div>
+              <div className="space-y-4 my-auto">
+                {Object.entries(vehicleStatusBars).map(([status, count]) => (
+                  <div key={status} className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                    <div className="flex justify-between md:contents">
+                      <span className="text-xs text-ink-muted w-24 shrink-0 uppercase tracking-wider">{status.replace('_', ' ')}</span>
+                      <span className="text-xs font-semibold text-ink-onLight w-6 text-right md:order-last">{count}</span>
+                    </div>
+                    <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[status] ?? 'bg-brand-dark'}`}
+                        style={{ width: `${(count / totalVehicles) * 100}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[status] ?? 'bg-brand-dark'}`}
-                      style={{ width: `${(count / totalVehicles) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Fleet Allocation Donut */}
+            <FleetAllocationDonut vehicleStatusBars={vehicleStatusBars} />
           </div>
 
           {/* Recent Trips Container */}
