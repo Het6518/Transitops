@@ -16,6 +16,7 @@ const MaintenancePage = lazy(() => import('@/features/maintenance/pages/Maintena
 const FuelPage = lazy(() => import('@/features/fuel/pages/FuelPage'));
 const ExpensesPage = lazy(() => import('@/features/expenses/pages/ExpensesPage'));
 const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
+const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage'));
 const UnauthorizedPage = lazy(() => import('@/components/common/UnauthorizedPage'));
 
 // Placeholder pages for modules not yet built
@@ -139,8 +140,22 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      { path: ROUTES.USERS, element: <ComingSoon module="User Management" /> },
-      { path: ROUTES.SETTINGS, element: <ComingSoon module="Settings" /> },
+      {
+        path: ROUTES.USERS,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <SettingsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.SETTINGS,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <SettingsPage />
+          </Suspense>
+        ),
+      },
       { path: ROUTES.PROFILE, element: <ComingSoon module="Profile" /> },
     ],
   },
