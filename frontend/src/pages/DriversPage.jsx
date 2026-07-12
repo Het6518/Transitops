@@ -8,7 +8,7 @@ import { useToast } from '../components/ToastProvider';
 import client from '../api/client';
 
 const EMPTY_FORM = {
-  name: '', licenseNo: '', licenseCategory: 'HMV',
+  name: '', email: '', licenseNo: '', licenseCategory: 'HMV',
   licenseExpiry: '', contact: '', safetyScore: '100',
 };
 
@@ -45,12 +45,13 @@ export default function DriversPage() {
   useEffect(() => { fetchDrivers(); }, [fetchDrivers]);
 
   const openAdd  = () => { setForm(EMPTY_FORM); setFormError(''); setModal('add'); };
-  const openEdit = (d) => { setForm({ name: d.name, licenseNo: d.licenseNo, licenseCategory: d.licenseCategory, licenseExpiry: d.licenseExpiry?.slice(0, 10) ?? '', contact: d.contact, safetyScore: String(d.safetyScore) }); setFormError(''); setModal(d); };
+  const openEdit = (d) => { setForm({ name: d.name, email: d.email ?? '', licenseNo: d.licenseNo, licenseCategory: d.licenseCategory, licenseExpiry: d.licenseExpiry?.slice(0, 10) ?? '', contact: d.contact, safetyScore: String(d.safetyScore) }); setFormError(''); setModal(d); };
   const closeModal = () => setModal(null);
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const validate = () => {
     if (!form.name.trim())     return 'Name is required';
+    if (form.email.trim() && !form.email.includes('@')) return 'Email must be a valid email address';
     if (!form.licenseNo.trim()) return 'License number is required';
     if (!form.licenseExpiry)   return 'License expiry is required';
     if (!form.contact.trim())  return 'Contact is required';
@@ -195,6 +196,10 @@ export default function DriversPage() {
               <div>
                 <label className="block text-xs font-medium text-ink-onDarkMuted mb-1">Full Name *</label>
                 <input name="name" value={form.name} onChange={handleChange} required className="input" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink-onDarkMuted mb-1">Email Address</label>
+                <input name="email" type="email" value={form.email} onChange={handleChange} className="input" placeholder="driver@example.com" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-ink-onDarkMuted mb-1">License No *</label>

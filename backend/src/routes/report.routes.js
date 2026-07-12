@@ -19,6 +19,9 @@ router.get('/maintenance-summary', requirePermission('report', 'read'), ctrl.get
 // GET /reports/export.csv         → Export CSV of vehicle report data (FLEET_MANAGER, FINANCIAL_ANALYST - we check 'report:read')
 router.get('/export.csv', requirePermission('report', 'read'), ctrl.exportCSV);
 
+// GET /reports/export.pdf         → Export PDF of general vehicle report data (FLEET_MANAGER, SAFETY_OFFICER, FINANCIAL_ANALYST)
+router.get('/export.pdf', requirePermission('report', 'read'), ctrl.exportPDF);
+
 // GET /reports                    → Get general vehicle report data (FLEET_MANAGER, SAFETY_OFFICER, FINANCIAL_ANALYST)
 router.get('/', requirePermission('report', 'read'), ctrl.getReports);
 

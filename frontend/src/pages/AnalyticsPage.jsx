@@ -26,22 +26,26 @@ export default function AnalyticsPage() {
   const [alerts, setAlerts]     = useState([]);
   const [maintenSummary, setMaintenSummary] = useState([]);
   const [trips, setTrips]       = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError]       = useState('');
 
   const fetchAll = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [repRes, alertRes, maintRes, tripRes] = await Promise.all([
+      const [repRes, alertRes, maintRes, tripRes, orgRes] = await Promise.all([
         client.get('/reports'),
         client.get('/reports/license-alerts'),
         client.get('/reports/maintenance-summary'),
         client.get('/trips'),
+        client.get('/organizations').catch(() => ({ data: [] })),
       ]);
       setReport(repRes.data);
       setAlerts(alertRes.data ?? []);
       setMaintenSummary(maintRes.data ?? []);
       setTrips(tripRes.data ?? []);
+      setOrganizations(orgRes.data ?? []);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to load analytics');
     } finally { setLoading(false); }
@@ -63,11 +67,37 @@ export default function AnalyticsPage() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await client.get('/reports/export.pdf', { responseType: 'blob' });
+      const file = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(file);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transitops-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast('PDF report downloaded successfully');
+    } catch (err) {
+      toast('Failed to download PDF report', 'error');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const monthlyRevenue = deriveMonthlyRevenue(trips);
   const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
 
   const costliest = report?.costliestVehicles ?? [];
   const maxCost   = Math.max(...costliest.map(v => v.totalCost), 1);
+
+  const rois      = report?.vehicleROIs ?? [];
+  const maxRoi    = Math.max(...rois.map(v => v.roi), 1);
 
   return (
     <PageLayout title="Reports & Analytics">
@@ -76,7 +106,30 @@ export default function AnalyticsPage() {
       {!loading && !error && report && (
         <>
           {/* Actions */}
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-end gap-3 mb-6">
+            <button
+              id="analytics-pdf-btn"
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading}
+              className="btn-primary text-sm flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {pdfLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download PDF Report
+                </>
+              )}
+            </button>
             {canExport && (
               <button id="analytics-export-btn" onClick={handleExport} className="btn-primary text-sm flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +153,7 @@ export default function AnalyticsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Top Costliest Vehicles */}
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h2 className="text-sm font-semibold text-ink-onLight mb-4">Top Costliest Vehicles</h2>
@@ -121,11 +174,31 @@ export default function AnalyticsPage() {
               )}
             </div>
 
+            {/* Top Vehicle ROI */}
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <h2 className="text-sm font-semibold text-ink-onLight mb-4">Top Vehicle ROI</h2>
+              {rois.length === 0 ? (
+                <p className="text-sm text-ink-muted">No data yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {rois.map((v, i) => (
+                    <div key={v.vehicleId ?? i} className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-ink-muted w-24 shrink-0">{v.regNo ?? v.vehicleId}</span>
+                      <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
+                        <div className="h-full bg-accent rounded-full" style={{ width: `${Math.max(0, (v.roi / maxRoi) * 100)}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold text-ink-onLight w-20 text-right">{v.roi.toLocaleString()}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Monthly Revenue — derived from completed trips × ₹1000 assumption */}
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h2 className="text-sm font-semibold text-ink-onLight mb-1">Monthly Revenue</h2>
               <p className="text-xs text-ink-muted mb-4">
-                Derived: completed trips × ₹1,000 flat assumption (no real revenue field in backend)
+                Derived: completed trips × ₹1,000 flat assumption
               </p>
               {monthlyRevenue.length === 0 ? (
                 <p className="text-sm text-ink-muted">No completed trips yet</p>

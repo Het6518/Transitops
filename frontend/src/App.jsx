@@ -14,6 +14,7 @@ import MaintenancePage   from './pages/MaintenancePage';
 import FuelExpensesPage  from './pages/FuelExpensesPage';
 import AnalyticsPage     from './pages/AnalyticsPage';
 import SettingsPage      from './pages/SettingsPage';
+import OrganizationPage  from './pages/OrganizationPage';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/maintenance"   element={<RouteGuard page="maintenance">   <MaintenancePage />   </RouteGuard>} />
             <Route path="/fuel-expenses" element={<RouteGuard page="fuelExpenses">  <FuelExpensesPage />  </RouteGuard>} />
             <Route path="/analytics"     element={<RouteGuard page="analytics">     <AnalyticsPage />     </RouteGuard>} />
+            <Route path="/organization"  element={<RouteGuard page="organization">  <OrganizationPage />  </RouteGuard>} />
             <Route path="/settings"      element={<RouteGuard page="settings">      <SettingsPage />      </RouteGuard>} />
 
             {/* Catch-all — send to login (RouteGuard redirects after auth) */}

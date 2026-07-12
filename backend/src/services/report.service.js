@@ -51,6 +51,10 @@ async function getDashboardKPIs({ vehicleType, status } = {}) {
     where: { status: 'ON_TRIP' },
   });
 
+  const availableDrivers = await prisma.driver.count({
+    where: { status: 'AVAILABLE' },
+  });
+
   // Fleet utilization percentage: (vehicles ON_TRIP) / (total non-retired vehicles) * 100
   let fleetUtilization = 0;
   if (totalNonRetiredVehicles > 0) {
@@ -100,6 +104,7 @@ async function getDashboardKPIs({ vehicleType, status } = {}) {
     activeTrips,
     pendingTrips,
     driversOnDuty,
+    availableDrivers,
     fleetUtilization: parseFloat(fleetUtilization.toFixed(2)),
     vehicleStatusBreakdown,
     recentTrips,
@@ -215,8 +220,120 @@ async function getMaintenanceSummary() {
         description: activeLog.description,
         startDate: activeLog.startDate,
       } : null,
+      // Frontend expected fields
+      totalRecords: logs.length,
+      totalCost: parseFloat(totalCost.toFixed(2)),
+      activeCount: logs.filter((log) => log.isActive).length,
     };
   });
+}
+
+/**
+ * Get aggregated data for the Fleet Operations PDF report.
+ */
+async function getFleetPdfReportData() {
+  // 1. Dashboard metrics
+  const dashboard = await getDashboardKPIs();
+
+  // 2. Vehicles
+  const vehicles = await prisma.vehicle.findMany({
+    orderBy: { regNo: 'asc' }
+  });
+
+  // 3. Drivers
+  const drivers = await prisma.driver.findMany({
+    orderBy: { name: 'asc' }
+  });
+
+  // 4. Trips (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const trips = await prisma.trip.findMany({
+    where: {
+      createdAt: { gte: thirtyDaysAgo }
+    },
+    include: {
+      vehicle: true,
+      driver: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // 5. Maintenance
+  const maintenance = await prisma.maintenanceLog.findMany({
+    include: {
+      vehicle: true
+    },
+    orderBy: { startDate: 'desc' }
+  });
+
+  // 6. Fuel & Expenses
+  const fuelLogs = await prisma.fuelLog.findMany({
+    include: { vehicle: true }
+  });
+  const expenses = await prisma.expense.findMany({
+    include: { vehicle: true }
+  });
+
+  const fuelAndExpenses = [
+    ...fuelLogs.map(f => ({
+      date: f.date,
+      regNo: f.vehicle?.regNo || '—',
+      type: 'Fuel',
+      liters: f.liters,
+      cost: f.cost
+    })),
+    ...expenses.map(e => ({
+      date: e.date,
+      regNo: e.vehicle?.regNo || '—',
+      type: e.type ? (e.type.charAt(0).toUpperCase() + e.type.slice(1)) : 'Expense',
+      liters: null,
+      cost: e.amount
+    }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // 7. Analytics & ROI
+  const reportRows = await getVehicleReportData();
+  const totalDistance = reportRows.reduce((sum, v) => sum + v.totalDistanceDriven, 0);
+  const totalFuel = reportRows.reduce((sum, v) => sum + v.totalFuelConsumed, 0);
+  const fuelEfficiency = totalFuel > 0 ? parseFloat((totalDistance / totalFuel).toFixed(2)) : 0;
+  const totalOperationalCost = reportRows.reduce((sum, v) => sum + v.operationalCost, 0);
+  const vehicleROI = reportRows.length > 0 ? parseFloat((reportRows.reduce((sum, v) => sum + v.vehicleROI, 0) / reportRows.length).toFixed(2)) : 0;
+
+  const costliestVehicles = [...reportRows]
+    .sort((a, b) => b.operationalCost - a.operationalCost)
+    .slice(0, 5)
+    .map(v => ({
+      vehicleId: v.vehicleId,
+      regNo: v.regNo,
+      totalCost: v.operationalCost
+    }));
+
+  const vehicleROIs = [...reportRows]
+    .sort((a, b) => b.vehicleROI - a.vehicleROI)
+    .slice(0, 5)
+    .map(v => ({
+      vehicleId: v.vehicleId,
+      regNo: v.regNo,
+      roi: v.vehicleROI
+    }));
+
+  return {
+    dashboard,
+    vehicles,
+    drivers,
+    trips,
+    maintenance,
+    fuelAndExpenses,
+    analytics: {
+      fuelEfficiency,
+      fleetUtilization: dashboard.fleetUtilization,
+      totalOperationalCost,
+      vehicleROI,
+      costliestVehicles,
+      vehicleROIs
+    }
+  };
 }
 
 module.exports = {
@@ -224,4 +341,5 @@ module.exports = {
   getVehicleReportData,
   getLicenseAlerts,
   getMaintenanceSummary,
+  getFleetPdfReportData
 };

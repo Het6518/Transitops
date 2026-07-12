@@ -237,18 +237,21 @@ async function main() {
 
   // ─── 6. Seed Drivers ────────────────────────────────────────────────────────
   console.log('👨 Seeding Drivers...');
+  const expiringExpiryDate = new Date();
+  expiringExpiryDate.setDate(expiringExpiryDate.getDate() + 30);
+
   const drivers = [
-    { name: 'John Driver', licenseNo: 'LIC-000001', licenseCategory: 'HMV', licenseExpiry: new Date('2028-12-31T00:00:00Z'), contact: '+919876543210', safetyScore: 95, status: 'AVAILABLE' },
-    { name: 'David Active', licenseNo: 'LIC-000002', licenseCategory: 'HMV', licenseExpiry: new Date('2029-06-15T00:00:00Z'), contact: '+919876543211', safetyScore: 88, status: 'ON_TRIP' },
-    { name: 'Sarah Break', licenseNo: 'LIC-000003', licenseCategory: 'LMV', licenseExpiry: new Date('2027-04-20T00:00:00Z'), contact: '+919876543212', safetyScore: 92, status: 'OFF_DUTY' },
-    { name: 'Mike Suspended', licenseNo: 'LIC-000004', licenseCategory: 'HMV', licenseExpiry: new Date('2028-01-01T00:00:00Z'), contact: '+919876543213', safetyScore: 45, status: 'SUSPENDED' },
-    { name: 'Robert Expired', licenseNo: 'LIC-000005', licenseCategory: 'LMV', licenseExpiry: new Date('2025-01-01T00:00:00Z'), contact: '+919876543214', safetyScore: 75, status: 'AVAILABLE' }
+    { name: 'John Driver', email: 'john.driver@test.com', licenseNo: 'LIC-000001', licenseCategory: 'HMV', licenseExpiry: new Date('2028-12-31T00:00:00Z'), contact: '+919876543210', safetyScore: 95, status: 'AVAILABLE' },
+    { name: 'David Active', email: 'david.active@test.com', licenseNo: 'LIC-000002', licenseCategory: 'HMV', licenseExpiry: new Date('2029-06-15T00:00:00Z'), contact: '+919876543211', safetyScore: 88, status: 'ON_TRIP' },
+    { name: 'Sarah Break', email: 'mjenil0016@gmail.com', licenseNo: 'LIC-000003', licenseCategory: 'LMV', licenseExpiry: expiringExpiryDate, contact: '+919876543212', safetyScore: 92, status: 'OFF_DUTY' },
+    { name: 'Mike Suspended', email: 'mike.suspended@test.com', licenseNo: 'LIC-000004', licenseCategory: 'HMV', licenseExpiry: new Date('2028-01-01T00:00:00Z'), contact: '+919876543213', safetyScore: 45, status: 'SUSPENDED' },
+    { name: 'Robert Expired', email: 'robert.expired@test.com', licenseNo: 'LIC-000005', licenseCategory: 'LMV', licenseExpiry: new Date('2025-01-01T00:00:00Z'), contact: '+919876543214', safetyScore: 75, status: 'AVAILABLE' }
   ];
   const driverMap = {};
   for (const d of drivers) {
     const drv = await prisma.driver.upsert({
       where: { licenseNo: d.licenseNo },
-      update: { status: d.status, licenseExpiry: d.licenseExpiry },
+      update: { status: d.status, licenseExpiry: d.licenseExpiry, email: d.email },
       create: d
     });
     driverMap[d.licenseNo] = drv.id;
@@ -352,6 +355,113 @@ async function main() {
       data: [
         { vehicleId: vehicleMap['MH12AB1001'], type: 'toll', amount: 20, date: new Date('2026-07-01T10:00:00Z') },
         { vehicleId: vehicleMap['MH12AB1002'], type: 'misc', amount: 15, date: new Date('2026-07-02T11:00:00Z') }
+      ]
+    });
+  }
+
+  // ─── 10. Seed Organizations, Jobs & Members ───────────────────────────────
+  console.log('🏢 Seeding Organizations, Jobs & Members...');
+  const orgCount = await prisma.organization.count();
+  if (orgCount === 0) {
+    const org = await prisma.organization.create({
+      data: {
+        name: "TransitOps Global",
+        email: "info@transitops.com",
+        phone: "+1 (555) 019-2834",
+        website: "https://transitops.com",
+        address: "100 Shipping Way, Suite 400, Logistics City",
+        orgType: "Enterprise Logistics",
+        foundedYear: 2018,
+        teamSize: "100-500 employees",
+        domainsOfWork: ["Supply Chain", "Fleet Routing", "Quality Assurance", "Operations"],
+        subscriptionPlan: "Enterprise",
+      }
+    });
+
+    await prisma.job.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          title: "Lead QA Engineer",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Remote",
+          location: "No specific location requirement",
+          domain: "Quality Assurance",
+          visibility: "Public",
+          appliedCount: 28,
+          shortlistedCount: 6,
+          offersCount: 2,
+          createdAt: new Date('2026-07-01T09:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          title: "Operations Coordinator",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Onsite",
+          location: "Chicago, USA",
+          domain: "Operations",
+          visibility: "Public",
+          appliedCount: 14,
+          shortlistedCount: 3,
+          offersCount: 1,
+          createdAt: new Date('2026-07-02T10:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          title: "Fleet Dispatch Manager",
+          employmentType: "Full-time",
+          workType: "Employee",
+          contractType: "Permanent",
+          mode: "Hybrid",
+          location: "Chicago, USA",
+          domain: "Operations",
+          visibility: "Private",
+          appliedCount: 8,
+          shortlistedCount: 2,
+          offersCount: 0,
+          createdAt: new Date('2026-07-03T11:00:00Z')
+        }
+      ]
+    });
+
+    await prisma.member.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          name: "Jenil Patel",
+          email: "jenil@test.com",
+          role: "Admin",
+          status: "Active",
+          joinedAt: new Date('2026-07-01T09:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Priya Sharma",
+          email: "priya@test.com",
+          role: "Manager",
+          status: "Active",
+          joinedAt: new Date('2026-07-02T10:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Nirbhay Singh",
+          email: "nirbhay@test.com",
+          role: "Member",
+          status: "Active",
+          joinedAt: new Date('2026-07-03T11:00:00Z')
+        },
+        {
+          organizationId: org.id,
+          name: "Rohan Das",
+          email: "rohan@test.com",
+          role: "Member",
+          status: "Pending",
+          joinedAt: new Date('2026-07-04T12:00:00Z')
+        }
       ]
     });
   }

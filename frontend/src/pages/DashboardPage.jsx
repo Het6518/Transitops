@@ -36,6 +36,7 @@ export default function DashboardPage() {
     { label: 'Active Trips',              value: data.activeTrips,           accent: 'bg-status-ontrip' },
     { label: 'Pending Trips',             value: data.pendingTrips,          accent: 'bg-status-draft' },
     { label: 'Drivers on Duty',           value: data.driversOnDuty,         accent: 'bg-accent' },
+    { label: 'Available Drivers',         value: data.availableDrivers,      accent: 'bg-status-available' },
     { label: 'Fleet Utilization',         value: data.fleetUtilization != null ? `${data.fleetUtilization}%` : '—', accent: 'bg-brand-dark' },
   ] : [];
 

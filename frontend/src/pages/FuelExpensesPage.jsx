@@ -10,13 +10,18 @@ export default function FuelExpensesPage() {
   const toast = useToast();
   const canFuel    = useCanWrite('fuelLog', 'create');
   const canExpense = useCanWrite('expense', 'create');
+  const canEditFuel   = useCanWrite('fuelLog', 'update');
+  const canDeleteFuel = useCanWrite('fuelLog', 'delete');
+  const canEditExpense = useCanWrite('expense', 'update');
+  const canDeleteExpense = useCanWrite('expense', 'delete');
 
   const [vehicles, setVehicles] = useState([]);
   const [fuelLogs, setFuelLogs] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
-  const [modal, setModal]       = useState(null); // 'fuel' | 'expense'
+  const [modal, setModal]       = useState(null); // 'fuel' | 'expense' | 'editFuel' | 'editExpense'
+  const [editingItem, setEditingItem] = useState(null);
   const [form, setForm]         = useState({});
   const [formError, setFormError] = useState('');
   const [saving, setSaving]     = useState(false);
@@ -49,7 +54,29 @@ export default function FuelExpensesPage() {
 
   const openFuel = () => { setForm({ vehicleId: '', liters: '', cost: '', date: '' }); setFormError(''); setModal('fuel'); };
   const openExpense = () => { setForm({ vehicleId: '', type: 'toll', amount: '', date: '' }); setFormError(''); setModal('expense'); };
-  const closeModal = () => setModal(null);
+  const openEditFuel = (f) => {
+    setForm({
+      vehicleId: f.vehicleId,
+      liters: f.liters,
+      cost: f.cost,
+      date: f.date ? new Date(f.date).toISOString().split('T')[0] : ''
+    });
+    setFormError('');
+    setEditingItem(f);
+    setModal('editFuel');
+  };
+  const openEditExpense = (e) => {
+    setForm({
+      vehicleId: e.vehicleId,
+      type: e.type,
+      amount: e.amount,
+      date: e.date ? new Date(e.date).toISOString().split('T')[0] : ''
+    });
+    setFormError('');
+    setEditingItem(e);
+    setModal('editExpense');
+  };
+  const closeModal = () => { setModal(null); setEditingItem(null); };
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleFuelSubmit = async (e) => {
@@ -58,13 +85,19 @@ export default function FuelExpensesPage() {
     if (Number(form.liters) <= 0 || Number(form.cost) <= 0)  { setFormError('Liters and cost must be positive'); return; }
     setSaving(true); setFormError('');
     try {
-      await client.post('/fuel-logs', {
+      const payload = {
         vehicleId: form.vehicleId,
         liters: Number(form.liters),
         cost:   Number(form.cost),
         date:   form.date ? new Date(form.date).toISOString() : undefined,
-      });
-      toast('Fuel log added');
+      };
+      if (modal === 'fuel') {
+        await client.post('/fuel-logs', payload);
+        toast('Fuel log added');
+      } else {
+        await client.patch(`/fuel-logs/${editingItem.id}`, payload);
+        toast('Fuel log updated');
+      }
       closeModal(); fetchAll();
     } catch (err) {
       toast(err.response?.data?.error?.message || 'Failed', 'error');
@@ -77,17 +110,45 @@ export default function FuelExpensesPage() {
     if (Number(form.amount) <= 0) { setFormError('Amount must be positive'); return; }
     setSaving(true); setFormError('');
     try {
-      await client.post('/expenses', {
+      const payload = {
         vehicleId: form.vehicleId,
         type:   form.type,
         amount: Number(form.amount),
         date:   form.date ? new Date(form.date).toISOString() : undefined,
-      });
-      toast('Expense logged');
+      };
+      if (modal === 'expense') {
+        await client.post('/expenses', payload);
+        toast('Expense logged');
+      } else {
+        await client.patch(`/expenses/${editingItem.id}`, payload);
+        toast('Expense updated');
+      }
       closeModal(); fetchAll();
     } catch (err) {
       toast(err.response?.data?.error?.message || 'Failed', 'error');
     } finally { setSaving(false); }
+  };
+
+  const handleFuelDelete = async (log) => {
+    if (!window.confirm(`Delete this fuel log for vehicle ${log.vehicleRegNo}?`)) return;
+    try {
+      await client.delete(`/fuel-logs/${log.id}`);
+      toast('Fuel log deleted');
+      fetchAll();
+    } catch (err) {
+      toast(err.response?.data?.error?.message || 'Failed to delete fuel log', 'error');
+    }
+  };
+
+  const handleExpenseDelete = async (exp) => {
+    if (!window.confirm(`Delete this expense for vehicle ${exp.vehicleRegNo}?`)) return;
+    try {
+      await client.delete(`/expenses/${exp.id}`);
+      toast('Expense deleted');
+      fetchAll();
+    } catch (err) {
+      toast(err.response?.data?.error?.message || 'Failed to delete expense', 'error');
+    }
   };
 
   // Compute total operational cost
@@ -121,13 +182,13 @@ export default function FuelExpensesPage() {
               <table className="w-full">
                 <thead className="bg-brand-light">
                   <tr>
-                    {['Vehicle', 'Date', 'Liters', 'Cost (₹)'].map(h => (
+                    {['Vehicle', 'Date', 'Liters', 'Cost (₹)', (canEditFuel || canDeleteFuel) && 'Actions'].filter(Boolean).map(h => (
                       <th key={h} className="text-left text-xs font-semibold text-ink-muted uppercase tracking-wider px-4 py-3">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 {fuelLogs.length === 0 ? (
-                  <tbody><tr><td colSpan={4}><EmptyState message="No fuel logs yet" /></td></tr></tbody>
+                  <tbody><tr><td colSpan={(canEditFuel || canDeleteFuel) ? 5 : 4}><EmptyState message="No fuel logs yet" /></td></tr></tbody>
                 ) : (
                   <tbody className="divide-y divide-gray-100">
                     {fuelLogs.map(f => (
@@ -136,6 +197,18 @@ export default function FuelExpensesPage() {
                         <td className="px-4 py-3 text-sm text-ink-muted">{new Date(f.date).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-sm text-ink-muted">{f.liters} L</td>
                         <td className="px-4 py-3 text-sm text-ink-muted">₹{f.cost.toLocaleString()}</td>
+                        {(canEditFuel || canDeleteFuel) && (
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-3">
+                              {canEditFuel && (
+                                <button onClick={() => openEditFuel(f)} className="text-xs text-accent hover:underline focus:outline-none">Edit</button>
+                              )}
+                              {canDeleteFuel && (
+                                <button onClick={() => handleFuelDelete(f)} className="text-xs text-status-retired hover:underline focus:outline-none">Delete</button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -153,13 +226,13 @@ export default function FuelExpensesPage() {
               <table className="w-full">
                 <thead className="bg-brand-light">
                   <tr>
-                    {['Vehicle', 'Type', 'Date', 'Amount (₹)'].map(h => (
+                    {['Vehicle', 'Type', 'Date', 'Amount (₹)', (canEditExpense || canDeleteExpense) && 'Actions'].filter(Boolean).map(h => (
                       <th key={h} className="text-left text-xs font-semibold text-ink-muted uppercase tracking-wider px-4 py-3">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 {expenses.length === 0 ? (
-                  <tbody><tr><td colSpan={4}><EmptyState message="No expenses yet" /></td></tr></tbody>
+                  <tbody><tr><td colSpan={(canEditExpense || canDeleteExpense) ? 5 : 4}><EmptyState message="No expenses yet" /></td></tr></tbody>
                 ) : (
                   <tbody className="divide-y divide-gray-100">
                     {expenses.map(ex => (
@@ -168,6 +241,18 @@ export default function FuelExpensesPage() {
                         <td className="px-4 py-3 text-sm text-ink-muted capitalize">{ex.type}</td>
                         <td className="px-4 py-3 text-sm text-ink-muted">{new Date(ex.date).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-sm text-ink-muted">₹{ex.amount.toLocaleString()}</td>
+                        {(canEditExpense || canDeleteExpense) && (
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-3">
+                              {canEditExpense && (
+                                <button onClick={() => openEditExpense(ex)} className="text-xs text-accent hover:underline focus:outline-none">Edit</button>
+                              )}
+                              {canDeleteExpense && (
+                                <button onClick={() => handleExpenseDelete(ex)} className="text-xs text-status-retired hover:underline focus:outline-none">Delete</button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -178,9 +263,9 @@ export default function FuelExpensesPage() {
         </div>
       )}
 
-      {/* Log Fuel Modal */}
-      {modal === 'fuel' && (
-        <Modal title="Log Fuel" onClose={closeModal}>
+      {/* Log/Edit Fuel Modal */}
+      {(modal === 'fuel' || modal === 'editFuel') && (
+        <Modal title={modal === 'fuel' ? 'Log Fuel' : 'Edit Fuel Log'} onClose={closeModal}>
           <form onSubmit={handleFuelSubmit} className="space-y-4">
             {formError && <div className="bg-status-retired/15 border border-status-retired/40 text-status-retired rounded-lg px-4 py-2 text-sm">{formError}</div>}
             <div>
@@ -202,15 +287,15 @@ export default function FuelExpensesPage() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={closeModal} className="btn-ghost">Cancel</button>
-              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Log Fuel'}</button>
+              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : (modal === 'fuel' ? 'Log Fuel' : 'Save Changes')}</button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Add Expense Modal */}
-      {modal === 'expense' && (
-        <Modal title="Add Expense" onClose={closeModal}>
+      {/* Add/Edit Expense Modal */}
+      {(modal === 'expense' || modal === 'editExpense') && (
+        <Modal title={modal === 'expense' ? 'Add Expense' : 'Edit Expense'} onClose={closeModal}>
           <form onSubmit={handleExpenseSubmit} className="space-y-4">
             {formError && <div className="bg-status-retired/15 border border-status-retired/40 text-status-retired rounded-lg px-4 py-2 text-sm">{formError}</div>}
             <div>
@@ -237,7 +322,7 @@ export default function FuelExpensesPage() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={closeModal} className="btn-ghost">Cancel</button>
-              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Add Expense'}</button>
+              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : (modal === 'expense' ? 'Add Expense' : 'Save Changes')}</button>
             </div>
           </form>
         </Modal>
