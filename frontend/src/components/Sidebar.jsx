@@ -22,7 +22,7 @@ function NavIcon({ name }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -32,14 +32,15 @@ export default function Sidebar() {
   );
 
   const handleLogout = () => {
+    if (onClose) onClose();
     logout();
     navigate('/login', { replace: true });
   };
 
   return (
-    <aside className="w-60 shrink-0 bg-brand-dark flex flex-col h-screen sticky top-0">
+    <aside className="w-60 shrink-0 bg-brand-dark flex flex-col h-screen sticky top-0 border-r border-brand-dark-raised md:border-none">
       {/* Wordmark */}
-      <div className="px-6 py-5 border-b border-brand-dark-raised">
+      <div className="px-6 py-5 border-b border-brand-dark-raised flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,6 +49,17 @@ export default function Sidebar() {
           </div>
           <span className="text-ink-onDark font-bold text-lg tracking-tight">TransitOps</span>
         </div>
+        
+        {/* Mobile close button */}
+        <button 
+          onClick={onClose}
+          className="md:hidden text-ink-onDarkMuted hover:text-ink-onDark focus:outline-none p-1 rounded hover:bg-brand-dark-raised"
+          aria-label="Close menu"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Nav items */}
@@ -57,6 +69,7 @@ export default function Sidebar() {
             key={item.page}
             to={item.path}
             id={`nav-${item.page}`}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                 isActive
