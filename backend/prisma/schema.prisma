@@ -1,0 +1,166 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  IN_SHOP
+  RETIRED
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  OFF_DUTY
+  SUSPENDED
+}
+
+enum TripStatus {
+  DRAFT
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+// ─── RBAC Models ─────────────────────────────────────────────────────────────
+
+/// A named role (e.g. FLEET_MANAGER). Stored in DB so new roles need no code change.
+model Role {
+  id              String           @id @default(uuid())
+  name            String           @unique   // FLEET_MANAGER, DRIVER, etc.
+  users           User[]
+  rolePermissions RolePermission[]
+}
+
+/// A single capability e.g. resource="vehicle" action="create"
+model Permission {
+  id              String           @id @default(uuid())
+  resource        String           // vehicle | driver | trip | maintenance | fuelLog | expense | dashboard | report
+  action          String           // create | read | update | delete | dispatch | complete | cancel
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+}
+
+/// Junction table — grants a Permission to a Role
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+// ─── Core Models ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Vehicle {
+  id              String           @id @default(uuid())
+  regNo           String           @unique
+  name            String
+  type            String
+  maxLoadKg       Float
+  odometer        Float            @default(0)
+  acquisitionCost Float
+  status          VehicleStatus    @default(AVAILABLE)
+  trips           Trip[]
+  maintenanceLogs MaintenanceLog[]
+  fuelLogs        FuelLog[]
+  expenses        Expense[]
+}
+
+model Driver {
+  id              String       @id @default(uuid())
+  name            String
+  licenseNo       String       @unique
+  licenseCategory String
+  licenseExpiry   DateTime
+  contact         String
+  safetyScore     Float        @default(100)
+  status          DriverStatus @default(AVAILABLE)
+  trips           Trip[]
+}
+
+model Trip {
+  id              String     @id @default(uuid())
+  source          String
+  destination     String
+  vehicleId       String
+  driverId        String
+  vehicle         Vehicle    @relation(fields: [vehicleId], references: [id])
+  driver          Driver     @relation(fields: [driverId], references: [id])
+  cargoWeightKg   Float
+  plannedDistance Float
+  actualOdometer  Float?
+  fuelConsumed    Float?
+  status          TripStatus @default(DRAFT)
+  createdAt       DateTime   @default(now())
+  dispatchedAt    DateTime?
+  completedAt     DateTime?
+}
+
+model MaintenanceLog {
+  id          String    @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
+  description String
+  cost        Float     @default(0)
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+}
+
+model FuelLog {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  liters    Float
+  cost      Float
+  date      DateTime @default(now())
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  type      String   // toll, misc, etc. (maintenance/fuel tracked separately)
+  amount    Float
+  date      DateTime @default(now())
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+/// Immutable record of every state-changing operation.
+/// Written inside the same $transaction as the state change — never after.
+model AuditLog {
+  id           String   @id @default(uuid())
+  entityType   String   // "Trip" | "Vehicle" | "Driver" | "MaintenanceLog"
+  entityId     String
+  action       String   // "DISPATCH" | "COMPLETE" | "CANCEL" | "MAINTENANCE_OPEN" | "MAINTENANCE_CLOSE" | "RETIRE"
+  performedBy  String   // userId from JWT (req.user.userId)
+  beforeStatus String?  // status value before the transition
+  afterStatus  String?  // status value after the transition
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([performedBy])
+}
