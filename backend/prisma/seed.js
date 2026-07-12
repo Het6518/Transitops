@@ -237,18 +237,21 @@ async function main() {
 
   // ─── 6. Seed Drivers ────────────────────────────────────────────────────────
   console.log('👨 Seeding Drivers...');
+  const expiringExpiryDate = new Date();
+  expiringExpiryDate.setDate(expiringExpiryDate.getDate() + 30);
+
   const drivers = [
-    { name: 'John Driver', licenseNo: 'LIC-000001', licenseCategory: 'HMV', licenseExpiry: new Date('2028-12-31T00:00:00Z'), contact: '+919876543210', safetyScore: 95, status: 'AVAILABLE' },
-    { name: 'David Active', licenseNo: 'LIC-000002', licenseCategory: 'HMV', licenseExpiry: new Date('2029-06-15T00:00:00Z'), contact: '+919876543211', safetyScore: 88, status: 'ON_TRIP' },
-    { name: 'Sarah Break', licenseNo: 'LIC-000003', licenseCategory: 'LMV', licenseExpiry: new Date('2027-04-20T00:00:00Z'), contact: '+919876543212', safetyScore: 92, status: 'OFF_DUTY' },
-    { name: 'Mike Suspended', licenseNo: 'LIC-000004', licenseCategory: 'HMV', licenseExpiry: new Date('2028-01-01T00:00:00Z'), contact: '+919876543213', safetyScore: 45, status: 'SUSPENDED' },
-    { name: 'Robert Expired', licenseNo: 'LIC-000005', licenseCategory: 'LMV', licenseExpiry: new Date('2025-01-01T00:00:00Z'), contact: '+919876543214', safetyScore: 75, status: 'AVAILABLE' }
+    { name: 'John Driver', email: 'john.driver@test.com', licenseNo: 'LIC-000001', licenseCategory: 'HMV', licenseExpiry: new Date('2028-12-31T00:00:00Z'), contact: '+919876543210', safetyScore: 95, status: 'AVAILABLE' },
+    { name: 'David Active', email: 'david.active@test.com', licenseNo: 'LIC-000002', licenseCategory: 'HMV', licenseExpiry: new Date('2029-06-15T00:00:00Z'), contact: '+919876543211', safetyScore: 88, status: 'ON_TRIP' },
+    { name: 'Sarah Break', email: 'mjenil0016@gmail.com', licenseNo: 'LIC-000003', licenseCategory: 'LMV', licenseExpiry: expiringExpiryDate, contact: '+919876543212', safetyScore: 92, status: 'OFF_DUTY' },
+    { name: 'Mike Suspended', email: 'mike.suspended@test.com', licenseNo: 'LIC-000004', licenseCategory: 'HMV', licenseExpiry: new Date('2028-01-01T00:00:00Z'), contact: '+919876543213', safetyScore: 45, status: 'SUSPENDED' },
+    { name: 'Robert Expired', email: 'robert.expired@test.com', licenseNo: 'LIC-000005', licenseCategory: 'LMV', licenseExpiry: new Date('2025-01-01T00:00:00Z'), contact: '+919876543214', safetyScore: 75, status: 'AVAILABLE' }
   ];
   const driverMap = {};
   for (const d of drivers) {
     const drv = await prisma.driver.upsert({
       where: { licenseNo: d.licenseNo },
-      update: { status: d.status, licenseExpiry: d.licenseExpiry },
+      update: { status: d.status, licenseExpiry: d.licenseExpiry, email: d.email },
       create: d
     });
     driverMap[d.licenseNo] = drv.id;

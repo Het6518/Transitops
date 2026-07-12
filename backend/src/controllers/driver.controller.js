@@ -1,6 +1,7 @@
 const { z }          = require('zod');
 const { zodMessage } = require('../utils/zodMessage');
 const svc            = require('../services/driver.service');
+const { checkAndSendLicenseExpiryReminders } = require('../cron');
 
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ const CONTACT_REGEX = /^\+?[0-9]{10,15}$/;
 
 const createSchema = z.object({
   name:            z.string().min(1, 'name is required'),
+  email:           z.string().email('email must be a valid email address').optional().nullable(),
   licenseNo:       z.string().min(1, 'licenseNo is required'),
   licenseCategory: z.string().min(1, 'licenseCategory is required'),
   licenseExpiry:   z.coerce.date({ required_error: 'licenseExpiry is required' }),
@@ -23,6 +25,7 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   name:            z.string().min(1).optional(),
+  email:           z.string().email('email must be a valid email address').optional().nullable(),
   licenseNo:       z.string().min(1).optional(),
   licenseCategory: z.string().min(1).optional(),
   licenseExpiry:   z.coerce.date().optional(),
@@ -96,4 +99,15 @@ const deleteDriver = asyncHandler(async (req, res) => {
   return res.status(204).send();
 });
 
-module.exports = { createDriver, listDrivers, getDriver, updateDriver, deleteDriver };
+/**
+ * POST /drivers/send-expiry-reminders
+ */
+const triggerExpiryReminders = asyncHandler(async (req, res) => {
+  const sentDrivers = await checkAndSendLicenseExpiryReminders();
+  return res.status(200).json({
+    message: `License expiry reminders process completed successfully. Sent to ${sentDrivers.length} driver(s).`,
+    drivers: sentDrivers
+  });
+});
+
+module.exports = { createDriver, listDrivers, getDriver, updateDriver, deleteDriver, triggerExpiryReminders };

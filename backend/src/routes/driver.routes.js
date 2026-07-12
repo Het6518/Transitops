@@ -13,6 +13,9 @@ router.use(authenticate);
 // POST   /drivers        → create (FLEET_MANAGER, SAFETY_OFFICER)
 router.post(  '/',    requirePermission('driver', 'create'), ctrl.createDriver);
 
+// POST   /drivers/send-expiry-reminders → trigger notifications (FLEET_MANAGER, SAFETY_OFFICER)
+router.post(  '/send-expiry-reminders', requirePermission('driver', 'create'), ctrl.triggerExpiryReminders);
+
 // GET    /drivers        → list with optional ?status= filter
 router.get(   '/',    requirePermission('driver', 'read'),   ctrl.listDrivers);
 
