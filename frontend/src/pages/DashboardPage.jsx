@@ -5,6 +5,240 @@ import StatusBadge from '../components/StatusBadge';
 import { Spinner, ErrorState } from '../components/States';
 import client from '../api/client';
 
+// ── Welcome Banner ───────────────────────────────────────────────────────────
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return { text: 'Good Morning', emoji: '☀️' };
+  if (h >= 12 && h < 17) return { text: 'Good Afternoon', emoji: '🌤️' };
+  return { text: 'Good Evening', emoji: '🌙' };
+}
+
+function Highlight({ children }) {
+  return (
+    <span className="font-bold text-accent">{children}</span>
+  );
+}
+
+function WelcomeBanner({ data, loading }) {
+  const { text } = getGreeting();
+
+  // Operational stats from existing data state
+  const utilization    = data?.fleetUtilization ?? 0;
+  const activeVehicles = data?.activeVehicles    ?? 0;
+  const available      = data?.availableVehicles ?? 0;
+  const inMaintenance  = data?.vehiclesInMaintenance ?? 0;
+  const activeTrips    = data?.activeTrips        ?? 0;
+  const driversOnDuty  = data?.driversOnDuty      ?? 0;
+
+  return (
+    <div
+      className="relative mb-8 rounded-2xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-raised) 100%)',
+        border: '1px solid var(--border-color)',
+        boxShadow: '0 2px 16px 0 rgba(99,102,241,0.06)',
+      }}
+    >
+      {/* Decorative background blobs */}
+      <div
+        className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #6366F1 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-6 -left-6 w-36 h-36 rounded-full opacity-10 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #F59E0B 0%, transparent 70%)' }}
+      />
+
+      <div className="relative px-6 py-6 sm:px-8 sm:py-7">
+        {/* Greeting */}
+        <div className="mb-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-onLight tracking-tight leading-tight">
+            {text}
+          </h1>
+        </div>
+
+        {/* Dynamic summary sentence */}
+        {loading ? (
+          <p className="text-sm text-ink-muted animate-pulse">Loading operational summary…</p>
+        ) : (
+          <p className="text-sm sm:text-base text-ink-muted leading-relaxed max-w-3xl">
+            Your fleet is operating at{' '}
+            <Highlight>{utilization}% utilization</Highlight> today.{' '}
+            <Highlight>{activeVehicles}</Highlight> vehicle{activeVehicles !== 1 ? 's' : ''} {activeVehicles !== 1 ? 'are' : 'is'} active,{' '}
+            <Highlight>{available}</Highlight> {available !== 1 ? 'are' : 'is'} available for dispatch,
+            {' '}and{' '}
+            <Highlight>{inMaintenance}</Highlight> {inMaintenance !== 1 ? 'are' : 'is'} currently under maintenance.
+            {activeTrips > 0 && (
+              <> You have <Highlight>{activeTrips}</Highlight> active trip{activeTrips !== 1 ? 's' : ''} in progress
+              {driversOnDuty > 0 && <> with <Highlight>{driversOnDuty}</Highlight> driver{driversOnDuty !== 1 ? 's' : ''} on duty</>}.</>
+            )}
+          </p>
+        )}
+
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STATUS_META = {
+  AVAILABLE: { label: 'Available', color: '#2F9E44', textClass: 'text-[#2F9E44]' },
+  ON_TRIP:   { label: 'On Trip',   color: '#3B82F6', textClass: 'text-[#3B82F6]' },
+  IN_SHOP:   { label: 'In Shop',   color: '#D97706', textClass: 'text-[#D97706]' },
+  RETIRED:   { label: 'Retired',   color: '#E5484D', textClass: 'text-[#E5484D]' },
+};
+
+function FleetAllocationDonut({ vehicleStatusBars }) {
+  const [activeTooltip, setActiveTooltip] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Trigger animation after initial render
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const statuses = ['AVAILABLE', 'ON_TRIP', 'IN_SHOP', 'RETIRED'];
+  const total = statuses.reduce((sum, status) => sum + (vehicleStatusBars[status] || 0), 0);
+
+  if (total === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex flex-col justify-center items-center text-ink-muted text-sm h-full">
+        <h2 className="text-sm font-semibold text-ink-onLight mb-2 self-start">Fleet Allocation</h2>
+        <p className="text-xs text-ink-muted mb-4 self-start">Current vehicle allocation and operational status</p>
+        <p className="text-ink-muted mt-8">No vehicles registered</p>
+      </div>
+    );
+  }
+
+  const segments = [];
+  let accumulatedPercent = 0;
+  statuses.forEach(status => {
+    const count = vehicleStatusBars[status] || 0;
+    if (count > 0) {
+      const percent = count / total;
+      segments.push({ status, count, percent, accumulatedPercent });
+      accumulatedPercent += percent;
+    }
+  });
+
+  const radius = 50;
+  const cx = 80;
+  const cy = 80;
+  const circumference = 2 * Math.PI * radius;
+
+  const handleMouseMove = (e, status, count) => {
+    const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setActiveTooltip({ status, count, x, y });
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex flex-col justify-between relative h-full">
+      <div>
+        <h2 className="text-sm font-semibold text-ink-onLight">Fleet Allocation</h2>
+        <p className="text-xs text-ink-muted mb-4">Current vehicle allocation and operational status</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-8 my-auto p-2">
+        {/* SVG Circle Section */}
+        <div className="relative flex justify-center items-center shrink-0">
+          <svg
+            viewBox="0 0 160 160"
+            className="w-48 h-48 overflow-visible"
+            style={{
+              transform: mounted ? 'rotate(0deg) scale(1)' : 'rotate(-30deg) scale(0.85)',
+              opacity: mounted ? 1 : 0,
+              transition: 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
+            }}
+          >
+            {/* Background ring */}
+            <circle cx={cx} cy={cy} r={radius} fill="transparent"
+              stroke="var(--border-color)" strokeWidth={14} />
+
+            {/* Animated segments */}
+            {segments.map((seg, idx) => {
+              const strokeLength = seg.percent * circumference;
+              const displayStroke = segments.length > 1 ? strokeLength - 2 : strokeLength;
+              const targetDasharray = `${Math.max(0.1, displayStroke)} ${circumference}`;
+              const targetDashoffset = -seg.accumulatedPercent * circumference;
+
+              return (
+                <circle
+                  key={seg.status}
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
+                  fill="transparent"
+                  stroke={STATUS_META[seg.status].color}
+                  strokeWidth={activeTooltip?.status === seg.status ? 17 : 14}
+                  strokeDasharray={mounted ? targetDasharray : `0 ${circumference}`}
+                  strokeDashoffset={targetDashoffset}
+                  transform={`rotate(-90 ${cx} ${cy})`}
+                  className="cursor-pointer"
+                  style={{
+                    transition: `stroke-dasharray 0.7s cubic-bezier(0.4,0,0.2,1) ${idx * 0.12}s, stroke-width 0.2s ease`,
+                  }}
+                  onMouseMove={(e) => handleMouseMove(e, seg.status, seg.count)}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                />
+              );
+            })}
+
+            {/* Central Total */}
+            <g className="pointer-events-none"
+              style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.4s ease 0.6s' }}>
+              <text x={cx} y={cy - 4} textAnchor="middle"
+                className="text-[10px] font-bold text-ink-muted uppercase tracking-wider"
+                fill="currentColor">Total</text>
+              <text x={cx} y={cy + 12} textAnchor="middle"
+                className="text-lg font-extrabold text-ink-onLight"
+                fill="currentColor">{total}</text>
+            </g>
+          </svg>
+
+          {/* Floating tooltip */}
+          {activeTooltip && (
+            <div
+              className="absolute bg-white dark:bg-brand-dark-raised text-ink-onLight shadow-lg border border-gray-100 dark:border-brand-dark rounded px-3 py-1.5 text-xs font-semibold pointer-events-none z-10 transition-all duration-75"
+              style={{ left: activeTooltip.x + 12, top: activeTooltip.y - 12 }}
+            >
+              {STATUS_META[activeTooltip.status].label} : {activeTooltip.count}
+            </div>
+          )}
+        </div>
+
+        {/* Vertical Legend on right */}
+        <div className="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[150px] border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-brand-dark pt-4 sm:pt-0 sm:pl-6">
+          {statuses.map((status, idx) => {
+            const count = vehicleStatusBars[status] || 0;
+            const meta = STATUS_META[status];
+            return (
+              <div
+                key={status}
+                className="flex items-center justify-between text-xs py-1"
+                style={{
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateX(0)' : 'translateX(12px)',
+                  transition: `opacity 0.35s ease ${0.4 + idx * 0.08}s, transform 0.35s ease ${0.4 + idx * 0.08}s`,
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
+                  <span className="text-ink-muted">{meta.label}</span>
+                </div>
+                <span className="font-semibold text-ink-onLight">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,13 +286,16 @@ export default function DashboardPage() {
 
   return (
     <PageLayout title="Dashboard">
+      {/* Welcome Banner */}
+      <WelcomeBanner data={data} loading={loading} />
+
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select
           id="dashboard-filter-type"
           value={filters.vehicleType}
           onChange={(e) => setFilters((f) => ({ ...f, vehicleType: e.target.value }))}
-          className="select text-sm"
+          className="select w-full sm:w-48 text-sm"
         >
           <option value="">All Types</option>
           <option value="truck">Truck</option>
@@ -69,7 +306,7 @@ export default function DashboardPage() {
           id="dashboard-filter-status"
           value={filters.status}
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="select text-sm"
+          className="select w-full sm:w-48 text-sm"
         >
           <option value="">All Statuses</option>
           <option value="AVAILABLE">Available</option>
@@ -84,37 +321,50 @@ export default function DashboardPage() {
       {!loading && !error && data && (
         <>
           {/* KPI Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {kpis.map((k) => (
               <KpiCard key={k.label} label={k.label} value={k.value} accent={k.accent} />
             ))}
           </div>
 
-          {/* Vehicle Status breakdown */}
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-8">
-            <h2 className="text-sm font-semibold text-ink-onLight mb-4">Vehicle Status Breakdown</h2>
-            <div className="space-y-3">
-              {Object.entries(vehicleStatusBars).map(([status, count]) => (
-                <div key={status} className="flex items-center gap-3">
-                  <span className="text-xs text-ink-muted w-24 shrink-0">{status.replace('_', ' ')}</span>
-                  <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[status] ?? 'bg-brand-dark'}`}
-                      style={{ width: `${(count / totalVehicles) * 100}%` }}
-                    />
+          {/* Status Breakdown & Fleet Allocation Donut */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Vehicle Status breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-ink-onLight">Vehicle Status Breakdown</h2>
+                <p className="text-xs text-ink-muted mb-4">Detailed status breakdown of current vehicles</p>
+              </div>
+              <div className="space-y-4 my-auto">
+                {Object.entries(vehicleStatusBars).map(([status, count]) => (
+                  <div key={status} className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                    <div className="flex justify-between md:contents">
+                      <span className="text-xs text-ink-muted w-24 shrink-0 uppercase tracking-wider">{status.replace('_', ' ')}</span>
+                      <span className="text-xs font-semibold text-ink-onLight w-6 text-right md:order-last">{count}</span>
+                    </div>
+                    <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[status] ?? 'bg-brand-dark'}`}
+                        style={{ width: `${(count / totalVehicles) * 100}%` }}
+                      />
+                    </div>
                   </div>
-                  <span className="text-xs font-semibold text-ink-onLight w-6 text-right">{count}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Fleet Allocation Donut */}
+            <FleetAllocationDonut vehicleStatusBars={vehicleStatusBars} />
           </div>
 
-          {/* Recent Trips */}
+          {/* Recent Trips Container */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-ink-onLight">Recent Trips</h2>
             </div>
-            <div className="overflow-x-auto">
+            
+            {/* Desktop & Tablet Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-brand-light">
                   <tr>
@@ -140,6 +390,45 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards List */}
+            <div className="block md:hidden p-4 space-y-4">
+              {data.recentTrips?.length > 0 ? (
+                data.recentTrips.map((t) => (
+                  <div key={t.id} className="p-4 space-y-3 bg-brand-light rounded-xl border border-brand-dark-raised/20 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Source</span>
+                        <span className="text-sm font-semibold text-ink-onLight">{t.source}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Destination</span>
+                        <span className="text-sm font-semibold text-ink-onLight">{t.destination}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-brand-dark-raised/15">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Vehicle</span>
+                        <span className="text-xs font-mono text-ink-muted truncate block max-w-full">{t.vehicle?.regNo ?? '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider block">Driver</span>
+                        <span className="text-xs text-ink-muted truncate block max-w-full">{t.driver?.name ?? '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-brand-dark-raised/15 flex justify-between items-center">
+                      <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider">Status</span>
+                      <StatusBadge status={t.status} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-sm text-ink-muted py-10">No recent trips</div>
+              )}
+            </div>
+
           </div>
         </>
       )}

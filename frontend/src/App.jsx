@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/ToastProvider';
 import { RouteGuard } from './components/RouteGuard';
 
@@ -19,31 +20,33 @@ import OrganizationPage  from './pages/OrganizationPage';
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
-            {/* Public */}
-            <Route path="/login" element={<LoginPage />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/login" element={<LoginPage />} />
 
-            {/* Blocked-access page — no role guard wrapping it (a DRIVER landing here should see it) */}
-            <Route path="/restricted" element={<RestrictedPage />} />
+              {/* Blocked-access page — no role guard wrapping it (a DRIVER landing here should see it) */}
+              <Route path="/restricted" element={<RestrictedPage />} />
 
-            {/* Protected — each wrapped in RouteGuard with the page key matching PAGE_ACCESS */}
-            <Route path="/dashboard"     element={<RouteGuard page="dashboard">    <DashboardPage />    </RouteGuard>} />
-            <Route path="/fleet"         element={<RouteGuard page="fleet">         <FleetPage />         </RouteGuard>} />
-            <Route path="/drivers"       element={<RouteGuard page="drivers">       <DriversPage />       </RouteGuard>} />
-            <Route path="/trips"         element={<RouteGuard page="trips">         <TripsPage />         </RouteGuard>} />
-            <Route path="/maintenance"   element={<RouteGuard page="maintenance">   <MaintenancePage />   </RouteGuard>} />
-            <Route path="/fuel-expenses" element={<RouteGuard page="fuelExpenses">  <FuelExpensesPage />  </RouteGuard>} />
-            <Route path="/analytics"     element={<RouteGuard page="analytics">     <AnalyticsPage />     </RouteGuard>} />
-            <Route path="/organization"  element={<RouteGuard page="organization">  <OrganizationPage />  </RouteGuard>} />
-            <Route path="/settings"      element={<RouteGuard page="settings">      <SettingsPage />      </RouteGuard>} />
+              {/* Protected — each wrapped in RouteGuard with the page key matching PAGE_ACCESS */}
+              <Route path="/dashboard"     element={<RouteGuard page="dashboard">    <DashboardPage />    </RouteGuard>} />
+              <Route path="/fleet"         element={<RouteGuard page="fleet">         <FleetPage />         </RouteGuard>} />
+              <Route path="/drivers"       element={<RouteGuard page="drivers">       <DriversPage />       </RouteGuard>} />
+              <Route path="/trips"         element={<RouteGuard page="trips">         <TripsPage />         </RouteGuard>} />
+              <Route path="/maintenance"   element={<RouteGuard page="maintenance">   <MaintenancePage />   </RouteGuard>} />
+              <Route path="/fuel-expenses" element={<RouteGuard page="fuelExpenses">  <FuelExpensesPage />  </RouteGuard>} />
+              <Route path="/analytics"     element={<RouteGuard page="analytics">     <AnalyticsPage />     </RouteGuard>} />
+              <Route path="/organization"  element={<RouteGuard page="organization">  <OrganizationPage />  </RouteGuard>} />
+              <Route path="/settings"      element={<RouteGuard page="settings">      <SettingsPage />      </RouteGuard>} />
 
-            {/* Catch-all — send to login (RouteGuard redirects after auth) */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
+              {/* Catch-all — send to login (RouteGuard redirects after auth) */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
