@@ -30,6 +30,15 @@ const getReports = asyncHandler(async (req, res) => {
       totalCost: v.operationalCost
     }));
 
+  const vehicleROIs = [...data]
+    .sort((a, b) => b.vehicleROI - a.vehicleROI)
+    .slice(0, 5)
+    .map(v => ({
+      vehicleId: v.vehicleId,
+      regNo: v.regNo,
+      roi: v.vehicleROI
+    }));
+
   // Fetch fleet utilization
   const prisma = require('../prisma/client');
   const totalVehicles = await prisma.vehicle.count({ where: { status: { not: 'RETIRED' } } });
@@ -41,7 +50,8 @@ const getReports = asyncHandler(async (req, res) => {
     fleetUtilization,
     totalOperationalCost,
     vehicleROI,
-    costliestVehicles
+    costliestVehicles,
+    vehicleROIs
   });
 });
 

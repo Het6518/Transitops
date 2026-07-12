@@ -69,6 +69,9 @@ export default function AnalyticsPage() {
   const costliest = report?.costliestVehicles ?? [];
   const maxCost   = Math.max(...costliest.map(v => v.totalCost), 1);
 
+  const rois      = report?.vehicleROIs ?? [];
+  const maxRoi    = Math.max(...rois.map(v => v.roi), 1);
+
   return (
     <PageLayout title="Reports & Analytics">
       {loading && <div className="py-16 text-center text-ink-muted text-sm">Loading…</div>}
@@ -100,7 +103,7 @@ export default function AnalyticsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Top Costliest Vehicles */}
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h2 className="text-sm font-semibold text-ink-onLight mb-4">Top Costliest Vehicles</h2>
@@ -121,11 +124,31 @@ export default function AnalyticsPage() {
               )}
             </div>
 
+            {/* Top Vehicle ROI */}
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <h2 className="text-sm font-semibold text-ink-onLight mb-4">Top Vehicle ROI</h2>
+              {rois.length === 0 ? (
+                <p className="text-sm text-ink-muted">No data yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {rois.map((v, i) => (
+                    <div key={v.vehicleId ?? i} className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-ink-muted w-24 shrink-0">{v.regNo ?? v.vehicleId}</span>
+                      <div className="flex-1 h-4 bg-brand-light rounded-full overflow-hidden">
+                        <div className="h-full bg-accent rounded-full" style={{ width: `${Math.max(0, (v.roi / maxRoi) * 100)}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold text-ink-onLight w-20 text-right">{v.roi.toLocaleString()}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Monthly Revenue — derived from completed trips × ₹1000 assumption */}
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h2 className="text-sm font-semibold text-ink-onLight mb-1">Monthly Revenue</h2>
               <p className="text-xs text-ink-muted mb-4">
-                Derived: completed trips × ₹1,000 flat assumption (no real revenue field in backend)
+                Derived: completed trips × ₹1,000 flat assumption
               </p>
               {monthlyRevenue.length === 0 ? (
                 <p className="text-sm text-ink-muted">No completed trips yet</p>
