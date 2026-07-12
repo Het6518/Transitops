@@ -11,13 +11,6 @@ datasource db {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
-enum RoleName {
-  FLEET_MANAGER
-  DRIVER
-  SAFETY_OFFICER
-  FINANCIAL_ANALYST
-}
-
 enum VehicleStatus {
   AVAILABLE
   ON_TRIP
@@ -39,25 +32,56 @@ enum TripStatus {
   CANCELLED
 }
 
-// ─── Models ──────────────────────────────────────────────────────────────────
+// ─── RBAC Models ─────────────────────────────────────────────────────────────
+
+/// A named role (e.g. FLEET_MANAGER). Stored in DB so new roles need no code change.
+model Role {
+  id              String           @id @default(uuid())
+  name            String           @unique   // FLEET_MANAGER, DRIVER, etc.
+  users           User[]
+  rolePermissions RolePermission[]
+}
+
+/// A single capability e.g. resource="vehicle" action="create"
+model Permission {
+  id              String           @id @default(uuid())
+  resource        String           // vehicle | driver | trip | maintenance | fuelLog | expense | dashboard | report
+  action          String           // create | read | update | delete | dispatch | complete | cancel
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+}
+
+/// Junction table — grants a Permission to a Role
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+// ─── Core Models ─────────────────────────────────────────────────────────────
 
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
-  role         RoleName
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
   createdAt    DateTime @default(now())
 }
 
 model Vehicle {
-  id              String          @id @default(uuid())
-  regNo           String          @unique
+  id              String           @id @default(uuid())
+  regNo           String           @unique
   name            String
   type            String
   maxLoadKg       Float
-  odometer        Float           @default(0)
+  odometer        Float            @default(0)
   acquisitionCost Float
-  status          VehicleStatus   @default(AVAILABLE)
+  status          VehicleStatus    @default(AVAILABLE)
   trips           Trip[]
   maintenanceLogs MaintenanceLog[]
   fuelLogs        FuelLog[]
